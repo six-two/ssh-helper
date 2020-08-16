@@ -2,6 +2,8 @@
 import subprocess
 import os
 import cmd
+import sys
+# External libraries. Might need no be installed via pip
 from termcolor import colored
 
 DEBUG = False
@@ -79,10 +81,10 @@ def execute_local_command(command, run_in_background=False, cwd=None):
 
 
 class Executor:
-    def __init__(self, remote_host, remote_user, remote_password=None):
+    def __init__(self, ssh_helper):
         self.local_path = None
         self.remote_path = None
-        self.ssh_helper = SshCommandConverter(remote_host, remote_user, remote_password)
+        self.ssh_helper = ssh_helper
 
         self.local_path = self.default_local_path = self.pwd(run_in_background=True)
         self.remote_path = self.default_remote_path = self.pwd(run_in_background=True, remote=True)
@@ -147,11 +149,27 @@ class MyShell(cmd.Cmd):
     intro = f'Welcome to the {NAME}. {HELP_TIP}\n'
     prompt = '(cmd) '
 
-    def __init__(self, executor):
+    def __init__(self, ssh_helper):
         super().__init__()
-        self.executor = executor
+        self.ssh_helper = ssh_helper
+        self.executor = None
+
+    def preloop(self):
+        if not self.executor:
+            # Initialize, run only once
+            ssh = self.ssh_helper
+            command = ['echo', 'Login successful']
+            command = ssh.make_remote_command(command)
+            print(f'Trying to login as "{ssh.remote_username}@{ssh.remote_host}"...')
+            status, _ = execute_local_command(command)
+            if status != 0:
+                print('\nFailed to login via ssh. See above error message for details')
+                sys.exit(1)
+
+            self.executor = Executor(self.ssh_helper)
 
     def default(self, line):
+        'Executed if the user input matches no defined command'
         print(colored('Unknown command: "{}"', 'red').format(line.split()[0]))
         print(HELP_TIP)
 
@@ -177,22 +195,24 @@ class MyShell(cmd.Cmd):
     def help_help(self):
         print('You can use the help command to show what commands are available and what they do')
 
+    def do_ls(self, arg):
+        'List the files in the current directory or in the given path on the remote computer'
+        self.executor.ls(arg, remote=True)
+
+    def do_lls(self, arg):
+        'List the files in the current directory or in the given path on the local computer'
+        self.executor.ls(arg, remote=False)
+
+
 if __name__ == '__main__':
-    import sys
     if "-h" in sys.argv or "--help" in sys.argv:
         print(USAGE)
         sys.exit()
 
     # Default settings for metasploitable 3 (ubuntu 14.04)
-    i = Executor("172.28.128.3", "vagrant", "vagrant")
-    s = MyShell(i)
+    ssh_helper = SshCommandConverter("172.28.128.3", "vagrant", "vagrant")
+    shell = MyShell(ssh_helper)
     try:
-        s.cmdloop()
+        shell.cmdloop()
     except KeyboardInterrupt:
         pass
-
-    # i.remote_path = "/home"
-    # i.ls(remote=True)
-    # i.local_path = "/home"
-    # i.ls()
-    # i.ls("/tmp")
