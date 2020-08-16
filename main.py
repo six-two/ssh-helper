@@ -3,11 +3,12 @@ import subprocess
 import os
 import cmd
 import sys
+import functools
 # External libraries. Might need no be installed via pip
-from termcolor import colored
+import termcolor
 
 DEBUG = False
-NAME = 'Dummie{}ell'.format(colored('SSH', 'red'))
+NAME = 'Dummie{}ell'.format(termcolor.colored('SSH', 'red'))
 HELP_TIP = 'Type "help" or "?" to list commands.'
 USAGE = """
 ssh-helper
@@ -16,17 +17,17 @@ Some commands can be executed on either localy or remotely. They are prefixed wi
 In this case use "pwd" to execute the command on the remote machine, use "lpwd" to execute the command on the local machine
 Other conventions: 
   <mandatory_argument>
-  [optional argument]
-  use_either_this_command | or_use_this_one
+  [optional_argument]
+  (use_either_this_command | or_use_this_one)
 
 Commands:
-(l)pwd          | Print the working directory's path
-(l)ls [path]    | Lists all files and directories in the working directory (or path if supplied)
-(l)cd [path]    | Change the working directory (to path if supplied, otherwise to the users home directory)
-help | ?        | Show this help message
-help | ? [cmd]  | Shows help about the given command
-shell | !       | Opens an interactive ssh session. Exit it as usual (via "exit" or Ctrl-D)
-shell | ! [cmd] | The given command will be run in a shell on the remote machine
+(l)pwd           | Print the working directory's path
+(l)ls [path]     | Lists all files and directories in the working directory (or path if supplied)
+(l)cd [path]     | Change the working directory (to path if supplied, otherwise to the users home directory)
+(help | ?)       | Show this help message
+(help | ?) <cmd> | Shows help about the given command
+(shell | !)      | Opens an interactive ssh session. Exit it as usual (via "exit" or Ctrl-D)
+(shell | !) <cmd>| The given command will be run in a shell on the remote machine
 """
 
 
@@ -79,6 +80,9 @@ def execute_local_command(command, run_in_background=False, cwd=None):
         print(r)
     return r
 
+def err(message):
+    '''Creates a colored string to be printed. It uses the standard error color'''
+    return termcolor.colored(message, "red")
 
 class Executor:
     def __init__(self, ssh_helper):
@@ -145,18 +149,30 @@ class Executor:
             self.local_path = new_cwd
 
 
+def no_args(fn):
+    @functools.wraps(fn)
+    def wrapper(self, arg):
+        f'''{fn.__doc__}'''
+        if arg:
+            fn_name = fn.__name__[3:]  # remove the leading "do_"
+            print(err('This command expects no arguments!'))
+            print(f'Hint: Try just running "{fn_name}" with nothing after it')
+        else:
+            fn(self, arg)
+    return wrapper
+
 class MyShell(cmd.Cmd):
     intro = f'Welcome to the {NAME}. {HELP_TIP}\n'
-    prompt = '(cmd) '
 
     def __init__(self, ssh_helper):
         super().__init__()
         self.ssh_helper = ssh_helper
         self.executor = None
+        self.prompt = '(You should not see this message)'
 
     def preloop(self):
+        '''Initializes the executor, if it is not already done'''
         if not self.executor:
-            # Initialize, run only once
             ssh = self.ssh_helper
             command = ['echo', 'Login successful']
             command = ssh.make_remote_command(command)
@@ -167,41 +183,85 @@ class MyShell(cmd.Cmd):
                 sys.exit(1)
 
             self.executor = Executor(self.ssh_helper)
+            self.update_prompt()
+
+    def postcmd(self, stop, line):
+        '''Update the prompt after running a command'''
+        self.update_prompt()
+        return stop
+
+    def update_prompt(self):
+        remote_dirname = os.path.basename(self.executor.remote_path)
+        prompt = f'({remote_dirname}) '
+        self.prompt = termcolor.colored(prompt, 'blue')
 
     def default(self, line):
-        'Executed if the user input matches no defined command'
-        print(colored('Unknown command: "{}"', 'red').format(line.split()[0]))
+        '''Executed if the user input matches no defined command'''
+        command = line.split()[0]
+        print(err(f'Unknown command: "{command}"'))
         print(HELP_TIP)
 
+    @no_args
     def do_EOF(self, arg):
-        'Exit this shell by pressing Ctrl-D on an empty prompt'
+        '''Usage: EOF
+Exit this shell. You can also trigger this by pressing Ctrl-D on an empty prompt'''
         return True
 
+    @no_args
     def do_exit(self, arg):
-        'Exit this interactive shell'
+        '''Usage: exit
+Exit this interactive shell'''
         return True
 
     def do_shell(self, arg):
-        'If called without arguments it will open a new interactive ssh session. If called with argument(s) it will run the argument(s) as a command on the remote machine and then'
+        '''Usage: (shell | !) [unix_command]
+If called without arguments, it will open a new interactive ssh session.
+If called with a unix_command, it will run the unix_command on the remote machine'''
         print(f'Got command: "{arg}"')
         self.executor.shell(arg)
 
     def do_help(self, arg):
+        '''Usage: help [command]
+If command is given, a help message about the command will be shown.
+Otherwise a list of valid commands and their usage is displayed'''
         if not arg:
             print(USAGE)
         else:
             super().do_help(arg)
 
-    def help_help(self):
-        print('You can use the help command to show what commands are available and what they do')
-
     def do_ls(self, arg):
-        'List the files in the current directory or in the given path on the remote computer'
+        '''Usage: ls [path]
+List the files in the current directory or in the given path on the remote computer'''
         self.executor.ls(arg, remote=True)
 
     def do_lls(self, arg):
-        'List the files in the current directory or in the given path on the local computer'
+        '''Usage: lls [path]
+List the files in the current directory or in the given path on the local computer'''
         self.executor.ls(arg, remote=False)
+
+    @no_args
+    def do_pwd(self, arg):
+        '''Usage: pwd
+Show the full path of your current working directory on the remote computer'''
+        self.executor.pwd(remote=True)
+
+    @no_args
+    def do_lpwd(self, arg):
+        '''Usage: lpwd
+Show the full path of your current working directory on the local computer'''
+        self.executor.pwd(remote=False)
+
+    def do_cd(self, arg):
+        '''Usage: cd [path]
+If a path is given, the remote working directory is set to path.
+If no path is given, the remote working directory is set to the users home directory.'''
+        self.executor.cd(arg, remote=True)
+
+    def do_lcd(self, arg):
+        '''Usage: cd [path]
+If a path is given, the local working directory is set to path.
+If no path is given, the local working directory is set to the users home directory.'''
+        self.executor.cd(arg, remote=False)
 
 
 if __name__ == '__main__':
