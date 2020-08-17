@@ -4,6 +4,7 @@ import os
 import cmd
 import sys
 import functools
+import signal
 # External libraries. Might need no be installed via pip
 import termcolor
 
@@ -21,6 +22,7 @@ Other conventions:
   (use_either_this_command | or_use_this_one)
 
 Commands:
+d                | Enable debug mode
 (l)pwd           | Print the working directory's path
 (l)ls [path]     | Lists all files and directories in the working directory (or path if supplied)
 (l)cd [path]     | Change the working directory (to path if supplied, otherwise to the users home directory)
@@ -29,7 +31,6 @@ Commands:
 (shell | !)      | Opens an interactive ssh session. Exit it as usual (via "exit" or Ctrl-D)
 (shell | !) <cmd>| The given command will be run in a shell on the remote machine
 """
-
 
 class SshCommandConverter:
     def __init__(self, remote_host, remote_user, remote_password=None):
@@ -128,10 +129,11 @@ class Executor:
             command += [path]
 
         status, output = self.execute_command(command, remote=remote, run_in_background=True)
-        if status != 0:
-            raise Exception('Process exited with code {}'.format(status))
-        # TODO only show useful columns
         output = output.decode()
+        if status != 0:
+            print(output.strip())
+            print(err('Process exited with code {}'.format(status)))
+        # TODO only show useful columns
         output = output.split('\n', 1)[1]  # remove the 'total=...' line
         print(output)
 
@@ -142,11 +144,17 @@ class Executor:
             new_cwd = os.path.normpath(new_cwd)
         else:
             new_cwd = self.default_remote_path if remote else self.default_local_path
-
-        if remote:
-            self.remote_path = new_cwd
+        
+        # Check if the target directory exists
+        # TODO find a way that works. failed:(test, cd)
+        status, _ = self.execute_command(['bash', '-c', f'cd \'{new_cwd}\''], remote=remote)
+        if status == 0:
+            if remote:
+                self.remote_path = new_cwd
+            else:
+                self.local_path = new_cwd
         else:
-            self.local_path = new_cwd
+            print(err('Not a valid directory or permission denied'))
 
 
 def no_args(fn):
@@ -169,6 +177,11 @@ class MyShell(cmd.Cmd):
         self.ssh_helper = ssh_helper
         self.executor = None
         self.prompt = '(You should not see this message)'
+        # def signal_handler(sig, frame):
+        #     print('You pressed Ctrl+C!')
+            
+        # signal.signal(signal.SIGINT, signal_handler)
+
 
     def preloop(self):
         '''Initializes the executor, if it is not already done'''
@@ -184,6 +197,41 @@ class MyShell(cmd.Cmd):
 
             self.executor = Executor(self.ssh_helper)
             self.update_prompt()
+
+    def complete_path_single_argument(self, remote, allow_files, text, line, begidx, endidx):
+        line_before_cursor = line[:endidx]
+        command, argument_before_cursor = line_before_cursor.split(' ', 1)
+        if DEBUG:
+            print('Single arg complete for', command)
+        return self.complete_path(remote, allow_files, argument_before_cursor, text)
+
+    def complete_path(self, remote, allow_files, path_up_to_cursor, text):
+        # #TODO improve option passing
+        if DEBUG:
+            print('abc')
+            print(f'[Complete path] remote={remote} "{path_up_to_cursor}" "{text}"')
+        try:
+            folder = os.path.dirname(path_up_to_cursor + 'handle_trailing_slash_correctly')
+            if not folder:
+                folder = '.'
+
+            # TODO BUG this will likely break on special characters like \n, \t, etc in filenames
+            ls_command = ['ls', '-1', '--escape', '--indicator-style=slash', '-A', '--color=never', folder]
+            status, output = self.executor.execute_command(ls_command, remote=remote, run_in_background=True)
+            output = output.decode()
+            if status != 0:
+                if DEBUG:
+                    print(err(f'Error listing files in "{folder}": {output}'))
+            else:
+                matches = [file_name for file_name in output.split("\n") if file_name.startswith(text)]
+                if not allow_files:
+                    matches = [f for f in matches if f.endswith('/')]
+                return matches
+        except Exception as ex:
+            pass  # TODO log these in a file somewhere?
+            if DEBUG:
+                print(ex)
+
 
     def postcmd(self, stop, line):
         '''Update the prompt after running a command'''
@@ -217,7 +265,7 @@ Exit this interactive shell'''
         '''Usage: (shell | !) [unix_command]
 If called without arguments, it will open a new interactive ssh session.
 If called with a unix_command, it will run the unix_command on the remote machine'''
-        print(f'Got command: "{arg}"')
+        # print(f'Got command: "{arg}"')
         self.executor.shell(arg)
 
     def do_help(self, arg):
@@ -229,15 +277,30 @@ Otherwise a list of valid commands and their usage is displayed'''
         else:
             super().do_help(arg)
 
+    @no_args
+    def do_d(self, arg):
+        global DEBUG
+        DEBUG = True
+        print("Debug mode enabled!")
+
+# ======================= (l)ls =======================
     def do_ls(self, arg):
         '''Usage: ls [path]
 List the files in the current directory or in the given path on the remote computer'''
         self.executor.ls(arg, remote=True)
 
+    def complete_ls(self, *args):
+        return self.complete_path_single_argument(True, True, *args)
+
     def do_lls(self, arg):
         '''Usage: lls [path]
 List the files in the current directory or in the given path on the local computer'''
         self.executor.ls(arg, remote=False)
+
+    def complete_lls(self, *args):
+        return self.complete_path_single_argument(False, True, *args)
+
+# ======================= (l)pwd =======================
 
     @no_args
     def do_pwd(self, arg):
@@ -251,17 +314,24 @@ Show the full path of your current working directory on the remote computer'''
 Show the full path of your current working directory on the local computer'''
         self.executor.pwd(remote=False)
 
+# ======================= (l)cd =======================
     def do_cd(self, arg):
         '''Usage: cd [path]
 If a path is given, the remote working directory is set to path.
 If no path is given, the remote working directory is set to the users home directory.'''
         self.executor.cd(arg, remote=True)
 
+    def complete_cd(self, *args):
+        return self.complete_path_single_argument(True, False, *args)
+
     def do_lcd(self, arg):
         '''Usage: cd [path]
 If a path is given, the local working directory is set to path.
 If no path is given, the local working directory is set to the users home directory.'''
         self.executor.cd(arg, remote=False)
+
+    def complete_lcd(self, *args):
+        return self.complete_path_single_argument(False, False, *args)
 
 
 if __name__ == '__main__':
