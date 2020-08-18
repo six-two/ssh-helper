@@ -2,6 +2,7 @@
 import cmd
 import os
 from typing import List
+import re
 # Local modules
 from common import *
 from executor import Executor
@@ -33,6 +34,27 @@ d                | Enable debug mode
 (shell | !)      | Opens an interactive ssh session. Exit it as usual (via "exit" or Ctrl-D)
 (shell | !) <cmd>| The given command will be run in a shell on the remote machine
 """
+
+def get_available_commands():
+    commands = []
+    usage_start = 'Usage: '
+    alias_regex = re.compile(r'\((.*?) \| (.*?)\) (.*)')
+    for member_name in dir(MyShell):
+        member = getattr(MyShell, member_name)
+        if member_name.startswith('do_') and callable(member):
+            usage = member.__doc__.split('\n')[0]
+            if usage.startswith(usage_start):
+                usage = usage[len(usage_start):]
+                result = alias_regex.match(usage)
+                if result:
+                    name, alias, arguments = result.groups()
+                    commands += [f'{name} {arguments}', f'{alias} {arguments}']
+                else:
+                    commands.append(usage)
+            else:
+                print(f'[Warning] Bad usage format: "{usage}"')
+
+    return sorted(commands)
 
 
 @decorate_all_methods_starting_with(print_exceptions, ['do_', 'complete_', 'help_'])
@@ -110,24 +132,26 @@ If called with a unix_command, it will run the unix_command on the local machine
         self.executor.shell(LOCAL, arg)
 
     def do_help(self, arg: str) -> None:
-        '''Usage: help [command]
+        '''Usage: (help | ?) [command]
 If command is given, a help message about the command will be shown.
 Otherwise a list of valid commands and their usage is displayed'''
         if not arg:
-            print(USAGE)
+            print("Available commands:")
+            for command in get_available_commands():
+                print(f'  {command}')
         else:
             super().do_help(arg)
 
     @no_args
-    def do_d(self, arg: str) -> None:
-        '''Usage: d
+    def do_dbg(self, arg: str) -> None:
+        '''Usage: dbg
 Enables debugging output. This may interfere with some features like command completion'''
         set_debug(True)
         print("Debug mode enabled!")
 
     @no_args
     def do_error(self, arg: str) -> None:
-        '''Usage: Error
+        '''Usage: error
 Causes an internal error. Used to test exception handling'''
         raise Exception('Test exception')
 

@@ -5,7 +5,6 @@ import sys
 '''
 TODO:
 add typing annotations
-antomatic help generation: parse the usage docstrings
 (l)rm(dir)
 (upload|download)_dir
 file name argument parsing
@@ -14,27 +13,48 @@ argument count macro
 
 '''
 =============== Command reminder ===============
-Run: /c/ssh-helper/main.py
+Run: /c/ssh-helper/main.py vagrant@172.28.128.3 -p vagrant
 Run typechecker: mypy /c/ssh-helper/
 '''
 
 if __name__ == '__main__':
+    import argparse
     # Change current dir to enable loading the other files
     src_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'src')
     sys.path.append(src_dir)
-    # pylint: disable=import-error
+    # pylint: disable=import-error,no-name-in-module
     from ssh_command_builder import SshCommandConverter
-    from my_shell import MyShell
+    from my_shell import MyShell, get_available_commands
+    from common import err
 
+    available_commands = ''.join([f'\n  {c}' for c in get_available_commands()])
 
-    if "-h" in sys.argv or "--help" in sys.argv:
-        MyShell(SshCommandConverter('should_never_be_used', 'should_never_be_used')).do_help('')
-        sys.exit()
+    parser = argparse.ArgumentParser(
+        description='A SSH helper that is inspired by the Metasploit Meterpreter',
+        epilog=f'available commands:' + available_commands,
+        formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument('user_at_host', help='<SSH username>@<hostname/IP address>')
+    parser.add_argument('--password', '-p', help='SSH login password')
+    parser.add_argument('--command', '-c', nargs='+', help='run command and exit')
+    args = parser.parse_args()
 
-    # Default settings for metasploitable 3 (ubuntu 14.04)
-    ssh_helper = SshCommandConverter("172.28.128.3", "vagrant", "vagrant")
-    shell = MyShell(ssh_helper)
     try:
-        shell.cmdloop()
+        user, host = args.user_at_host.split('@')
+    except:
+        print(err(f'Invalid format: "{args.user_at_host}"'))
+        print('Expected format: "<SSH username>@<hostname/IP address>"')
+        print('Examples: "admin@ssh.six-two.dev", "vagrant@172.28.128.3"')
+        sys.exit(1)
+
+    ssh_helper = SshCommandConverter(host, user, args.password)
+    shell = MyShell(ssh_helper)
+
+    try:
+        if args.command is not None:
+            command = ' '.join(args.command)
+            shell.preloop()
+            shell.onecmd(command)
+        else:
+            shell.cmdloop()
     except KeyboardInterrupt:
         pass
