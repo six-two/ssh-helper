@@ -3,7 +3,7 @@ import functools
 import traceback
 from typing import Optional, Callable, Any, List
 # Local modules
-from common import *
+from .common import *
 
 
 def print_exceptions(fn: Callable) -> Callable:

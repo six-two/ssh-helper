@@ -1,7 +1,5 @@
 # pylint: disable=unused-wildcard-import
 from typing import Sequence, List
-# Local modules
-from common import *
 
 
 class SshSettings:
@@ -10,7 +8,7 @@ class SshSettings:
         self.host = host
         self.password = password
 
-class SshCommandConverter:
+class SshCommandBuilder:
     def __init__(self, ssh: SshSettings) -> None:
         self.user_at_host = f'{ssh.user}@{ssh.host}'
         self.sshpass = ['sshpass', '-p', ssh.password] if ssh.password else []

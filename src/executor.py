@@ -5,8 +5,8 @@ import sys
 import shlex
 from typing import Tuple, List, Sequence, Optional
 # Local modules
-from common import *
-from ssh_command_builder import SshCommandConverter, SshSettings
+from .common import *
+from .ssh_utils import SshCommandBuilder, SshSettings
 
 
 def execute_local_command(command: Sequence[str], run_in_background: bool = False, cwd: str = None) -> Tuple[int, bytes]:
@@ -28,7 +28,7 @@ def execute_local_command(command: Sequence[str], run_in_background: bool = Fals
 
 class Executor:
     def __init__(self, ssh_settings: SshSettings):
-        self.ssh_helper = SshCommandConverter(ssh_settings)
+        self.ssh_helper = SshCommandBuilder(ssh_settings)
         self.local_path = None
         self.remote_path = None
 

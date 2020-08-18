@@ -4,10 +4,10 @@ import os
 from typing import List
 import re
 # Local modules
-from common import *
-from executor import Executor
-from ssh_command_builder import SshSettings
-from my_decorators import *
+from .common import *
+from .executor import Executor
+from .ssh_utils import SshSettings
+from .my_decorators import *
 # External libraries. Might need no be installed via pip
 import termcolor
 
@@ -96,9 +96,10 @@ class MyShell(cmd.Cmd):
         return stop
 
     def update_prompt(self) -> None:
-        remote_dirname = os.path.basename(self.executor.remote_path)
-        prompt = f'({remote_dirname}) '
-        self.prompt = termcolor.colored(prompt, 'blue')
+        if self.executor.remote_path:
+            remote_dirname = os.path.basename(self.executor.remote_path)
+            prompt = f'({remote_dirname}) '
+            self.prompt = termcolor.colored(prompt, 'blue')
 
     def default(self, line: str) -> bool:
         '''Executed if the user input matches no defined command'''

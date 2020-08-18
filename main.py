@@ -21,10 +21,9 @@ import argparse
 # Change current dir to enable loading the other files
 src_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'src')
 sys.path.append(src_dir)
+# Import local package
 # pylint: disable=import-error,no-name-in-module
-from ssh_command_builder import SshSettings
-from my_shell import MyShell, get_available_commands
-from common import err
+from src import SshSettings, MyShell, get_available_commands, err
 
 available_commands = ''.join([f'\n  {c}' for c in get_available_commands()])
 
