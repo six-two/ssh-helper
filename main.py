@@ -1,10 +1,6 @@
 #!/usr/bin/env python3
 import os
 import sys
-# Change current dir to enable loading the other files
-os.chdir(os.path.dirname(os.path.abspath(__file__)))
-from ssh_command_builder import SshCommandConverter
-from my_shell import MyShell
 
 '''
 TODO:
@@ -23,6 +19,14 @@ Run typechecker: mypy /c/ssh-helper/
 '''
 
 if __name__ == '__main__':
+    # Change current dir to enable loading the other files
+    src_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'src')
+    sys.path.append(src_dir)
+    # pylint: disable=import-error
+    from ssh_command_builder import SshCommandConverter
+    from my_shell import MyShell
+
+
     if "-h" in sys.argv or "--help" in sys.argv:
         MyShell(SshCommandConverter('should_never_be_used', 'should_never_be_used')).do_help('')
         sys.exit()
