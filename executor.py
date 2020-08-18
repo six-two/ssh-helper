@@ -1,22 +1,27 @@
 import subprocess
 import os
 import sys
+import shlex
 # Local modules
 from common import *
 
 def execute_local_command(command, run_in_background=False, cwd=None):
-    print_debug(command)
-    options = {}
-    options['cwd'] = cwd
-    if run_in_background:
-        options['stdout'] = subprocess.PIPE
-        options['stderr'] = subprocess.STDOUT
+    try:
+        print_debug(command)
+        options = {}
+        options['cwd'] = cwd
+        if run_in_background:
+            options['stdout'] = subprocess.PIPE
+            options['stderr'] = subprocess.STDOUT
 
-    result = subprocess.run(command, **options)
-    output = result.stdout if run_in_background else None
-    r = (result.returncode, output)
-    print_debug(r)
-    return r
+        result = subprocess.run(command, **options)
+        output = result.stdout if run_in_background else None
+        r = (result.returncode, output)
+        print_debug(r)
+        return r
+    except Exception as ex:
+        print(err(f'Failed to execute command {command}:'))
+        print(err(ex))
 
 
 class Executor:
@@ -28,7 +33,7 @@ class Executor:
     def initialize(self):
         if not self.local_path:
             # Only run once
-            print(f'Trying to login as "{self.ssh_helper.remote_username}@{self.ssh_helper.remote_host}"...')
+            print(f'Trying to login as "{self.ssh_helper.user_at_host}"...')
             status, _ = self.execute_command(['echo', 'Login successful'], remote=True)
             if status != 0:
                 print('\nFailed to login via ssh. See above error message for details')
@@ -43,8 +48,8 @@ class Executor:
                 command = ['cd', self.remote_path, ';'] + command
             command = self.ssh_helper.make_remote_command(command, ssh_options=ssh_options)
         return execute_local_command(command,
-                                     run_in_background=run_in_background,
-                                     cwd=self.local_path)
+                                    run_in_background=run_in_background,
+                                    cwd=self.local_path)
 
     def complete_path(self, remote, allow_files, path_up_to_cursor, text):
         # #TODO improve option passing
@@ -66,18 +71,17 @@ class Executor:
                     matches = [f for f in matches if f.endswith('/')]
                 return matches
         except Exception as ex:
-            pass  # TODO log these in a file somewhere?
-            if DEBUG:
-                print(ex)
+            # TODO log these in a file somewhere?
+            print_debug(ex)
 
-    def shell(self, command=None):
+    def shell(self, command=None, remote=False):
         if command:
-            # Execute the given command in a shell
-            # self.execute_command(['bash', '-c', command], remote=True)
-            self.execute_command([command], remote=True)
+            # Execute the given command
+            split_command = shlex.split(command)
+            self.execute_command(split_command, remote=remote)
         else:
             # Open an interactive shell. "-t" enables the command prompts
-            self.execute_command(['bash'], remote=True, ssh_options=['-t'])
+            self.execute_command(['bash'], remote=remote, ssh_options=['-t'])
 
     def pwd(self, remote=False, run_in_background=False):
         # Todo: add error handling? Add remote timeouts?
@@ -122,3 +126,7 @@ class Executor:
                 self.local_path = new_cwd
         else:
             print(err('Not a valid directory or permission denied'))
+
+    def file_transfer(self, src, dst, is_upload, is_directory):
+        command = self.ssh_helper.make_scp_command(src, dst, is_upload, is_directory)
+        self.execute_command(command, remote=False)

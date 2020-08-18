@@ -52,7 +52,15 @@ class MyShell(cmd.Cmd):
         line_before_cursor = line[:endidx]
         command, argument_before_cursor = line_before_cursor.split(' ', 1)
         print_debug(f'Single arg complete for "{command}"')
-        return self.complete_path(remote, allow_files, argument_before_cursor, text)
+        return self.executor.complete_path(remote, allow_files, argument_before_cursor, text)
+
+    def precmd(self, line):
+        # try to replace 'l!' with 'lshell'
+        l = line.lstrip()
+        if l.startswith("l!"):
+            line = f'lshell {l[2:]}'
+
+        return line
 
     def postcmd(self, stop, line):
         '''Update the prompt after running a command'''
@@ -84,10 +92,15 @@ Exit this interactive shell'''
 
     def do_shell(self, arg):
         '''Usage: (shell | !) [unix_command]
-If called without arguments, it will open a new interactive ssh session.
+If called without arguments, it will open a new interactive ssh session with the remote computer.
 If called with a unix_command, it will run the unix_command on the remote machine'''
-        # print(f'Got command: "{arg}"')
-        self.executor.shell(arg)
+        self.executor.shell(arg, remote=True)
+
+    def do_lshell(self, arg):
+        '''Usage: (lshell | l!) [unix_command]
+If called without arguments, it will open a new interactive shell on the local computer.
+If called with a unix_command, it will run the unix_command on the local machine'''
+        self.executor.shell(arg, remote=False)
 
     def do_help(self, arg):
         '''Usage: help [command]
@@ -149,10 +162,35 @@ If no path is given, the remote working directory is set to the users home direc
         return self.complete_path_single_argument(True, False, *args)
 
     def do_lcd(self, arg):
-        '''Usage: cd [path]
+        '''Usage: lcd [path]
 If a path is given, the local working directory is set to path.
 If no path is given, the local working directory is set to the users home directory.'''
         self.executor.cd(arg, remote=False)
 
     def complete_lcd(self, *args):
         return self.complete_path_single_argument(False, False, *args)
+
+# ======================= download =======================
+    def do_download(self, arg):
+        '''Usage: download <path>
+Download the file located at path from the local computer and saves it with the same filename in the working directory on the local computer.'''
+        remote_path = arg
+        local_path = os.path.basename(remote_path)
+        is_upload = False
+        is_directory = False
+        self.executor.file_transfer(remote_path, local_path, is_upload, is_directory)
+
+    def complete_download(self, *args):
+        return self.complete_path_single_argument(True, True, *args)
+
+    def do_upload(self, arg):
+        '''Usage: upload <path>
+Upload the file located at path from the local computer and saves it with the same filename in the working directory on the remote computer.'''
+        local_path = arg
+        remote_path = os.path.basename(local_path)
+        is_upload = True
+        is_directory = False
+        self.executor.file_transfer(remote_path, local_path, is_upload, is_directory)
+
+    def complete_upload(self, *args):
+        return self.complete_path_single_argument(False, True, *args)
