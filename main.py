@@ -4,13 +4,27 @@ import sys
 # Change current dir to enable loading the other files
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 from ssh_command_builder import SshCommandConverter
-from common import *
 from my_shell import MyShell
 
+'''
+TODO:
+add typing annotations
+antomatic help generation: parse the usage docstrings
+(l)rm(dir)
+(upload|download)_dir
+file name argument parsing
+argument count macro
+'''
+
+'''
+=============== Command reminder ===============
+Run: /c/ssh-helper/main.py
+Run typechecker: mypy /c/ssh-helper/
+'''
 
 if __name__ == '__main__':
     if "-h" in sys.argv or "--help" in sys.argv:
-        print(USAGE)
+        MyShell(SshCommandConverter('should_never_be_used', 'should_never_be_used')).do_help('')
         sys.exit()
 
     # Default settings for metasploitable 3 (ubuntu 14.04)

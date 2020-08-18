@@ -1,9 +1,15 @@
+# pylint: disable=unused-wildcard-import
 import cmd
 import os
+from typing import List
 # Local modules
 from common import *
 from executor import Executor
+from ssh_command_builder import SshCommandConverter
 from my_decorators import *
+# External libraries. Might need no be installed via pip
+import termcolor
+
 
 NAME = 'Dummie{}ell'.format(termcolor.colored('SSH', 'red'))
 HELP_TIP = 'Type "help" or "?" to list commands.'
@@ -33,7 +39,7 @@ d                | Enable debug mode
 class MyShell(cmd.Cmd):
     intro = f'Welcome to the {NAME}. {HELP_TIP}\n'
 
-    def __init__(self, ssh_helper):
+    def __init__(self, ssh_helper: SshCommandConverter) -> None:
         super().__init__()
         self.executor = Executor(ssh_helper)
         self.prompt = '(You should not see this message)'
@@ -44,17 +50,17 @@ class MyShell(cmd.Cmd):
         # signal.signal(signal.SIGINT, signal_handler)
 
 
-    def preloop(self):
+    def preloop(self) -> None:
         self.executor.initialize()
         self.update_prompt()
 
-    def complete_path_single_argument(self, remote, allow_files, text, line, begidx, endidx):
+    def complete_path_single_argument(self, remote: IsRemote, allow_files: bool, text: str, line: str, begidx: int, endidx: int) -> List[str]:
         line_before_cursor = line[:endidx]
         command, argument_before_cursor = line_before_cursor.split(' ', 1)
         print_debug(f'Single arg complete for "{command}"')
         return self.executor.complete_path(remote, allow_files, argument_before_cursor, text)
 
-    def precmd(self, line):
+    def precmd(self, line: str) -> str:
         # try to replace 'l!' with 'lshell'
         l = line.lstrip()
         if l.startswith("l!"):
@@ -62,47 +68,48 @@ class MyShell(cmd.Cmd):
 
         return line
 
-    def postcmd(self, stop, line):
+    def postcmd(self, stop: bool, line: str) -> bool:
         '''Update the prompt after running a command'''
         self.update_prompt()
         return stop
 
-    def update_prompt(self):
+    def update_prompt(self) -> None:
         remote_dirname = os.path.basename(self.executor.remote_path)
         prompt = f'({remote_dirname}) '
         self.prompt = termcolor.colored(prompt, 'blue')
 
-    def default(self, line):
+    def default(self, line: str) -> bool:
         '''Executed if the user input matches no defined command'''
         command = line.split()[0]
         print(err(f'Unknown command: "{command}"'))
         print(HELP_TIP)
+        return False
 
     @no_args
-    def do_EOF(self, arg):
+    def do_EOF(self, arg: str) -> bool:
         '''Usage: EOF
 Exit this shell. You can also trigger this by pressing Ctrl-D on an empty prompt'''
         return True
 
     @no_args
-    def do_exit(self, arg):
+    def do_exit(self, arg: str) -> bool:
         '''Usage: exit
 Exit this interactive shell'''
         return True
 
-    def do_shell(self, arg):
+    def do_shell(self, arg: str) -> None:
         '''Usage: (shell | !) [unix_command]
 If called without arguments, it will open a new interactive ssh session with the remote computer.
 If called with a unix_command, it will run the unix_command on the remote machine'''
-        self.executor.shell(arg, remote=True)
+        self.executor.shell(REMOTE, arg)
 
-    def do_lshell(self, arg):
+    def do_lshell(self, arg: str) -> None:
         '''Usage: (lshell | l!) [unix_command]
 If called without arguments, it will open a new interactive shell on the local computer.
 If called with a unix_command, it will run the unix_command on the local machine'''
-        self.executor.shell(arg, remote=False)
+        self.executor.shell(LOCAL, arg)
 
-    def do_help(self, arg):
+    def do_help(self, arg: str) -> None:
         '''Usage: help [command]
 If command is given, a help message about the command will be shown.
 Otherwise a list of valid commands and their usage is displayed'''
@@ -112,66 +119,70 @@ Otherwise a list of valid commands and their usage is displayed'''
             super().do_help(arg)
 
     @no_args
-    def do_d(self, arg):
+    def do_d(self, arg: str) -> None:
+        '''Usage: d
+Enables debugging output. This may interfere with some features like command completion'''
         set_debug(True)
         print("Debug mode enabled!")
 
     @no_args
-    def do_error(self, arg):
+    def do_error(self, arg: str) -> None:
+        '''Usage: Error
+Causes an internal error. Used to test exception handling'''
         raise Exception('Test exception')
 
 # ======================= (l)ls =======================
-    def do_ls(self, arg):
+    def do_ls(self, arg: str) -> None:
         '''Usage: ls [path]
 List the files in the current directory or in the given path on the remote computer'''
-        self.executor.ls(arg, remote=True)
+        self.executor.ls(REMOTE, arg)
 
-    def complete_ls(self, *args):
-        return self.complete_path_single_argument(True, True, *args)
+    def complete_ls(self, *args) -> List[str]:
+        return self.complete_path_single_argument(REMOTE, True, *args)
 
-    def do_lls(self, arg):
+    def do_lls(self, arg: str) -> None:
         '''Usage: lls [path]
 List the files in the current directory or in the given path on the local computer'''
-        self.executor.ls(arg, remote=False)
+        self.executor.ls(LOCAL, arg)
 
-    def complete_lls(self, *args):
-        return self.complete_path_single_argument(False, True, *args)
+    def complete_lls(self, *args) -> List[str]:
+        return self.complete_path_single_argument(LOCAL, True, *args)
 
 # ======================= (l)pwd =======================
 
     @no_args
-    def do_pwd(self, arg):
+    def do_pwd(self, arg: str) -> None:
         '''Usage: pwd
 Show the full path of your current working directory on the remote computer'''
-        self.executor.pwd(remote=True)
+        self.executor.pwd(REMOTE)
 
     @no_args
-    def do_lpwd(self, arg):
+    def do_lpwd(self, arg: str) -> None:
         '''Usage: lpwd
 Show the full path of your current working directory on the local computer'''
-        self.executor.pwd(remote=False)
+        self.executor.pwd(LOCAL)
 
 # ======================= (l)cd =======================
-    def do_cd(self, arg):
+    def do_cd(self, arg: str) -> None:
         '''Usage: cd [path]
 If a path is given, the remote working directory is set to path.
 If no path is given, the remote working directory is set to the users home directory.'''
-        self.executor.cd(arg, remote=True)
+        self.executor.cd(REMOTE, arg)
 
-    def complete_cd(self, *args):
-        return self.complete_path_single_argument(True, False, *args)
+    def complete_cd(self, *args) -> List[str]:
+        return self.complete_path_single_argument(REMOTE, False, *args)
 
-    def do_lcd(self, arg):
+    def do_lcd(self, arg: str) -> None:
         '''Usage: lcd [path]
 If a path is given, the local working directory is set to path.
 If no path is given, the local working directory is set to the users home directory.'''
-        self.executor.cd(arg, remote=False)
+        self.executor.cd(LOCAL, arg)
 
-    def complete_lcd(self, *args):
-        return self.complete_path_single_argument(False, False, *args)
+    def complete_lcd(self, *args) -> List[str]:
+        return self.complete_path_single_argument(LOCAL, False, *args)
 
 # ======================= download =======================
-    def do_download(self, arg):
+    def do_download(self, arg: str) -> None:
         '''Usage: download <path>
 Download the file located at path from the local computer and saves it with the same filename in the working directory on the local computer.'''
         remote_path = arg
@@ -180,10 +191,10 @@ Download the file located at path from the local computer and saves it with the 
         is_directory = False
         self.executor.file_transfer(remote_path, local_path, is_upload, is_directory)
 
-    def complete_download(self, *args):
-        return self.complete_path_single_argument(True, True, *args)
+    def complete_download(self, *args) -> List[str]:
+        return self.complete_path_single_argument(REMOTE, True, *args)
 
-    def do_upload(self, arg):
+    def do_upload(self, arg: str) -> None:
         '''Usage: upload <path>
 Upload the file located at path from the local computer and saves it with the same filename in the working directory on the remote computer.'''
         local_path = arg
@@ -192,5 +203,5 @@ Upload the file located at path from the local computer and saves it with the sa
         is_directory = False
         self.executor.file_transfer(remote_path, local_path, is_upload, is_directory)
 
-    def complete_upload(self, *args):
-        return self.complete_path_single_argument(False, True, *args)
+    def complete_upload(self, *args) -> List[str]:
+        return self.complete_path_single_argument(LOCAL, True, *args)

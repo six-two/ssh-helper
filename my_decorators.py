@@ -1,13 +1,16 @@
+# pylint: disable=unused-wildcard-import
 import functools
 import traceback
+from typing import Optional, Callable, Any, List
 # Local modules
 from common import *
 
-def print_exceptions(fn):
+
+def print_exceptions(fn: Callable) -> Callable:
     @functools.wraps(fn)
-    def wrapper_print_exceptions(self, *args, **kwargs):
+    def wrapper_print_exceptions(*args, **kwargs):
         try:
-            return fn(self, *args, **kwargs)
+            return fn(*args, **kwargs)
         except Exception:
             header = ' Internal error '.center(80, '=')
             error = traceback.format_exc()
@@ -17,9 +20,9 @@ def print_exceptions(fn):
             print(err(message))
     return wrapper_print_exceptions
 
-def no_args(fn):
+def no_args(fn: Callable) -> Callable:
     @functools.wraps(fn)
-    def wrapper_no_args(self, arg):
+    def wrapper_no_args(self, arg: str):
         if arg:
             fn_name = fn.__name__[3:]  # remove the leading "do_"
             print(err('This command expects no arguments!'))
@@ -28,7 +31,7 @@ def no_args(fn):
             return fn(self, arg)
     return wrapper_no_args
 
-def decorate_all_methods_starting_with(decorator, pattern_list):
+def decorate_all_methods_starting_with(decorator: Callable[[Callable], Callable], pattern_list: List[str]) -> Callable:
     def wrapper_decorate_all_methods_starting_with(my_object):
         for pattern in pattern_list:
             for member_name in my_object.__dict__:
