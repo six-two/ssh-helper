@@ -187,6 +187,41 @@ Show the full path of your current working directory on the remote computer'''
 Show the full path of your current working directory on the local computer'''
         self.executor.pwd(LOCAL)
 
+# ======================= (l)rm =======================
+    def do_rm(self, arg: str) -> None:
+        '''Usage: rm [path]
+Remove the file with the given path from the remote computer'''
+        self.executor.execute_command(REMOTE, ['rm', arg])
+
+    def complete_rm(self, *args) -> List[str]:
+        return self.complete_path_single_argument(REMOTE, True, *args)
+
+    def do_lrm(self, arg: str) -> None:
+        '''Usage: lrm [path]
+Remove the file with the given path from the local computer'''
+        self.executor.execute_command(LOCAL, ['rm', arg])
+
+    def complete_lrm(self, *args) -> List[str]:
+        return self.complete_path_single_argument(LOCAL, True, *args)
+
+# ======================= (l)rmdir =======================
+    def do_rmdir(self, arg: str) -> None:
+        '''Usage: rmdir [path]
+Remove the directory with the given path from the remote computer'''
+        self.executor.execute_command(REMOTE, ['rm', '-r', arg])
+
+    def complete_rmdir(self, *args) -> List[str]:
+        return self.complete_path_single_argument(REMOTE, True, *args)
+
+    def do_lrmdir(self, arg: str) -> None:
+        '''Usage: lrmdir [path]
+Remove the directory with the given path from the local computer'''
+        self.executor.execute_command(LOCAL, ['rm', '-r', arg])
+
+    def complete_lrmdir(self, *args) -> List[str]:
+        return self.complete_path_single_argument(LOCAL, True, *args)
+
+
 # ======================= (l)cd =======================
     def do_cd(self, arg: str) -> None:
         '''Usage: cd [path]

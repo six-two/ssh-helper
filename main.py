@@ -3,9 +3,10 @@
 '''
 TODO:
 add typing annotations
-(l)rm(dir)
+mv, edit, view
 (upload|download)_dir
 file name argument parsing
+creating shortcuts (like R1, L4)
 argument count macro
 '''
 
