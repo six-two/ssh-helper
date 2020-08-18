@@ -6,7 +6,7 @@ import re
 # Local modules
 from common import *
 from executor import Executor
-from ssh_command_builder import SshCommandConverter
+from ssh_command_builder import SshSettings
 from my_decorators import *
 # External libraries. Might need no be installed via pip
 import termcolor
@@ -61,9 +61,9 @@ def get_available_commands():
 class MyShell(cmd.Cmd):
     intro = f'Welcome to the {NAME}. {HELP_TIP}\n'
 
-    def __init__(self, ssh_helper: SshCommandConverter) -> None:
+    def __init__(self, ssh_settings: SshSettings) -> None:
         super().__init__()
-        self.executor = Executor(ssh_helper)
+        self.executor = Executor(ssh_settings)
         self.prompt = '(You should not see this message)'
 
         # def signal_handler(sig, frame):

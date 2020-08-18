@@ -1,6 +1,4 @@
 #!/usr/bin/env python3
-import os
-import sys
 
 '''
 TODO:
@@ -17,44 +15,45 @@ Run: /c/ssh-helper/main.py vagrant@172.28.128.3 -p vagrant
 Run typechecker: mypy /c/ssh-helper/
 '''
 
-if __name__ == '__main__':
-    import argparse
-    # Change current dir to enable loading the other files
-    src_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'src')
-    sys.path.append(src_dir)
-    # pylint: disable=import-error,no-name-in-module
-    from ssh_command_builder import SshCommandConverter
-    from my_shell import MyShell, get_available_commands
-    from common import err
+import os
+import sys
+import argparse
+# Change current dir to enable loading the other files
+src_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'src')
+sys.path.append(src_dir)
+# pylint: disable=import-error,no-name-in-module
+from ssh_command_builder import SshSettings
+from my_shell import MyShell, get_available_commands
+from common import err
 
-    available_commands = ''.join([f'\n  {c}' for c in get_available_commands()])
+available_commands = ''.join([f'\n  {c}' for c in get_available_commands()])
 
-    parser = argparse.ArgumentParser(
-        description='A SSH helper that is inspired by the Metasploit Meterpreter',
-        epilog=f'available commands:' + available_commands,
-        formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('user_at_host', help='<SSH username>@<hostname/IP address>')
-    parser.add_argument('--password', '-p', help='SSH login password')
-    parser.add_argument('--command', '-c', nargs='+', help='run command and exit')
-    args = parser.parse_args()
+parser = argparse.ArgumentParser(
+    description='A SSH helper that is inspired by the Metasploit Meterpreter',
+    epilog=f'available commands:' + available_commands,
+    formatter_class=argparse.RawDescriptionHelpFormatter)
+parser.add_argument('user_at_host', help='<SSH username>@<hostname/IP address>')
+parser.add_argument('--password', '-p', help='SSH login password')
+parser.add_argument('--command', '-c', nargs='+', help='run command and exit')
+args = parser.parse_args()
 
-    try:
-        user, host = args.user_at_host.split('@')
-    except:
-        print(err(f'Invalid format: "{args.user_at_host}"'))
-        print('Expected format: "<SSH username>@<hostname/IP address>"')
-        print('Examples: "admin@ssh.six-two.dev", "vagrant@172.28.128.3"')
-        sys.exit(1)
+try:
+    user, host = args.user_at_host.split('@')
+except:
+    print(err(f'Invalid format: "{args.user_at_host}"'))
+    print('Expected format: "<SSH username>@<hostname/IP address>"')
+    print('Examples: "admin@ssh.six-two.dev", "vagrant@172.28.128.3"')
+    sys.exit(1)
 
-    ssh_helper = SshCommandConverter(host, user, args.password)
-    shell = MyShell(ssh_helper)
+ssh_settings = SshSettings(host, user, args.password)
+shell = MyShell(ssh_settings)
 
-    try:
-        if args.command is not None:
-            command = ' '.join(args.command)
-            shell.preloop()
-            shell.onecmd(command)
-        else:
-            shell.cmdloop()
-    except KeyboardInterrupt:
-        pass
+try:
+    if args.command is not None:
+        command = ' '.join(args.command)
+        shell.preloop()
+        shell.onecmd(command)
+    else:
+        shell.cmdloop()
+except KeyboardInterrupt:
+    pass
