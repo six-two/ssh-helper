@@ -3,7 +3,8 @@ import subprocess
 import os
 import sys
 import shlex
-from typing import Tuple, List, Sequence, Optional
+import re
+from typing import Tuple, List, Sequence, Optional, Dict
 # Local modules
 from .common import *
 from .ssh_utils import SshCommandBuilder, SshSettings
@@ -58,22 +59,25 @@ class Executor:
             self.local_path = self.default_local_path
             self.remote_path = self.default_remote_path
 
-    def _make_remote_command(self, command: Sequence[str], ssh_options: Optional[Sequence[str]]) -> List[str]:
-        if self.remote_path:
-            command = ['cd', self.remote_path, ';', *command]
-        if ssh_options is None:
-            ssh_options = []
-        return self.ssh_helper.make_remote_command(command, ssh_options=ssh_options)
-
-    def execute_in_background(self, is_remote: IsRemote, command: Sequence[str], ssh_options: Sequence[str] = None) -> str:
+    def _prepare_command(self, is_remote: IsRemote, command: Sequence[str], ssh_options: Optional[Sequence[str]], shell: bool) -> Sequence[str]:
         if is_remote:
-            command = self._make_remote_command(command, ssh_options)
-        return execute_in_background(command, self.local_path)
+            if self.remote_path:
+                command = ['cd', self.remote_path, ';', *command]
+            if ssh_options is None:
+                ssh_options = []
+            return self.ssh_helper.make_remote_command(command, ssh_options=ssh_options)
+        else:
+            if shell:
+                command = ['bash', '-c', shlex.join(command)]
+            return command
 
-    def execute(self, is_remote: IsRemote, command: Sequence[str], ssh_options: Sequence[str] = None) -> None:
-        if is_remote:
-            command = self._make_remote_command(command, ssh_options)
-        execute_in_foreground(command, self.local_path)
+    def execute_in_background(self, is_remote: IsRemote, command: Sequence[str], ssh_options: Sequence[str] = None, shell=False) -> str:
+        c = self._prepare_command(is_remote, command, ssh_options, shell)
+        return execute_in_background(c, self.local_path)
+
+    def execute(self, is_remote: IsRemote, command: Sequence[str], ssh_options: Sequence[str] = None, shell=False) -> None:
+        c = self._prepare_command(is_remote, command, ssh_options, shell)
+        execute_in_foreground(c, self.local_path)
 
     def complete_path(self, remote: IsRemote, allow_files, path_up_to_cursor, text) -> List[str]:
         # #TODO improve option passing
@@ -101,8 +105,10 @@ class Executor:
     def shell(self, is_remote: IsRemote, command_string: str = None):
         if command_string:
             # Execute the given command
-            command = shlex.split(command_string)
-            self.execute(is_remote, command)
+            if is_remote:
+                self.execute(REMOTE, shlex.split(command_string))
+            else:
+                self.execute(LOCAL, ['bash', '-c', command_string])
         else:
             # Open an interactive shell. "-t" enables the command prompts
             self.execute(is_remote, ['bash'], ssh_options=['-t'])
@@ -152,8 +158,24 @@ class Executor:
         except CommandExecutionFailed:
             print(err('Not a valid directory or permission denied'))
 
-    def get_commands(self, pattern: str = None) -> List[str]:
-        pass
+    # def get_vars(self, remote: IsRemote, variable_names) -> Dict[str, str]:
+    #     output = self.execute_in_background(remote, ['printenv', variable_names], shell=True)
+    #     values = output.split('\n')
+    #     for name, value in zip(variable_names, values):
+    #         pass
+
+    def get_commands(self, remote: IsRemote, pattern: str = None) -> List[str]:
+        # ['ls', '-1', '$PATH']
+        path = self.execute_in_background(remote, ['printenv', 'PATH'])
+        path_array = path.strip().split(':')
+        output = self.execute_in_background(remote, ['ls', '-1', *path_array])
+        commands = [line for line in output.split('\n') if line and not line.startswith('/')]
+        # remove duplicates and sort alphabetical
+        commands = sorted(set(commands))
+        if pattern:
+            regex = re.compile(pattern)
+            commands = [c for c in commands if regex.search(c)]
+        return commands
 
     def file_transfer(self, src: str, dst: str, is_upload: bool, is_directory: bool) -> None:
         command = self.ssh_helper.make_scp_command(src, dst, is_upload, is_directory)

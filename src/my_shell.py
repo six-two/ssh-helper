@@ -98,9 +98,12 @@ Exit this interactive shell'''
 
     # No decorator, so that we can pass the raw string through
     def do_shell(self, arg: str) -> None:
-        '''Usage: (shell | !) [unix_command]
+        '''Usage: (shell | !) [unix_command...]
 If called without arguments, it will open a new interactive ssh session with the remote computer.
-If called with a unix_command, it will run the unix_command on the remote machine'''
+If called with a unix_command, it will run the unix_command on the remote machine
+
+Example:
+ - "!uname -a" will run "uname -a" on the remote computer'''
         self.executor.shell(REMOTE, arg)
 
     # No decorator, so that we can pass the raw string through
@@ -273,3 +276,26 @@ Edit the file located at path on the remote computer'''
 
     def complete_edit(self, *args) -> List[str]:
         return self.complete_path_single_argument(LOCAL, True, *args)
+
+# ======================= edit =======================
+    @arg_count(0, 1)
+    def do_sc(self, pattern: str = None) -> None:
+        '''Usage: sc [regex]
+Lists all commands in the remote computers path, that match the regex.
+
+Examples: 
+ - "sc ^php" will find all commands that start with "php"
+ - "sc admin" will find any commands that contain the word "admin"'''
+        commands = self.executor.get_commands(REMOTE, pattern)
+        print('\n'.join(commands))
+
+    @arg_count(0, 1)
+    def do_lsc(self, pattern: str = None) -> None:
+        '''Usage: llscmd [regex]
+Lists all commands in the local computers path, that match the regex
+
+Examples: 
+ - "sc ^php" will find all commands that start with "php"
+ - "sc admin" will find any commands that contain the word "admin"'''
+        commands = self.executor.get_commands(LOCAL, pattern)
+        print('\n'.join(commands))
