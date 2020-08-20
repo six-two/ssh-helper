@@ -48,9 +48,8 @@ def arg_count(mini: int, maxi: int = None) -> Callable:
 
                 real_arg_count = pluralize(len(args), 'argument')
                 print(err(f'This command expects {error_arg_count}, but it got {real_arg_count}!'))
-                if fn.__doc__:
-                    usage = fn.__doc__.split('\n')[0]
-                    print(usage)
+                print_usage(fn)
+
         return wrapper_arg_count
     return decorator_arg_count
 

@@ -17,25 +17,18 @@ HELP_TIP = 'Type "help" or "?" to list commands.'
 
 def get_available_commands() -> List[str]:
     commands = []
-    usage_start = 'Usage: '
     alias_regex = re.compile(r'\((.*?) \| (.*?)\) (.*)')
     for member_name in dir(MyShell):
         member = getattr(MyShell, member_name)
         if member_name.startswith('do_') and callable(member):
-            if member.__doc__:
-                usage = member.__doc__.split('\n')[0]
-                if usage.startswith(usage_start):
-                    usage = usage[len(usage_start):]
-                    result = alias_regex.match(usage)
-                    if result:
-                        name, alias, arguments = result.groups()
-                        commands += [f'{name} {arguments}', f'{alias} {arguments}']
-                    else:
-                        commands.append(usage)
+            usage = get_usage(member)
+            if usage:
+                result = alias_regex.match(usage)
+                if result:
+                    name, alias, arguments = result.groups()
+                    commands += [f'{name} {arguments}', f'{alias} {arguments}']
                 else:
-                    print(f'[Warning] Bad usage format: "{usage}"')
-            else:
-                print(f'Warning: Method "{member_name}" has no docstring')
+                    commands.append(usage)
 
     return sorted(commands)
 
@@ -132,12 +125,18 @@ Otherwise a list of valid commands and their usage is displayed'''
                 arg = 'help'
             super().do_help(arg)
 
-    @arg_count(0)
-    def do_dbg(self) -> None:
-        '''Usage: dbg
-Enables debugging output. This may interfere with some features like command completion'''
-        set_debug(True)
-        print("Debug mode enabled!")
+    @arg_count(1)
+    def do_debug(self, value: str) -> None:
+        '''Usage: debug <on | off>
+Enables / disables debugging output. This may interfere with some features like command completion'''
+        if value == 'on':
+            set_debug(True)
+            print("Debug mode enabled!")
+        elif value == 'off':
+            set_debug(False)
+            print("Debug mode disabled!")
+        else:
+            print_usage(self.do_debug)
 
     @arg_count(0)
     def do_error(self) -> None:
