@@ -7,6 +7,7 @@ mv, edit, view
 list_commands (all in path)
 get_env
 sysinfo
+commands [pattern]
 (upload|download)_dir
 file name argument parsing
 creating shortcuts (like R1, L4)

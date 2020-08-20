@@ -4,10 +4,16 @@ import traceback
 from typing import Optional, Callable, Any, List
 # Local modules
 from .common import *
+from .executor import CommandExecutionFailed
 
 def _parse_arguments(arg: str) -> List[str]:
     #TODO this is just a bandaid, needs support for escaped spaces / real argument parsing
     return [a for a in arg.split(' ') if a]
+
+def make_box_message(title: str, message: str, line_length=80) -> str:
+    header = f' {title} '.center(line_length, '=')
+    end = '=' * line_length
+    return f'\n{header}\n{message.strip()}\n{end}'
 
 
 def print_exceptions(fn: Callable) -> Callable:
@@ -15,13 +21,10 @@ def print_exceptions(fn: Callable) -> Callable:
     def wrapper_print_exceptions(*args, **kwargs):
         try:
             return fn(*args, **kwargs)
+        except CommandExecutionFailed as ex:
+            print(err(make_box_message('Command failed', str(ex))))
         except Exception:
-            header = ' Internal error '.center(80, '=')
-            error = traceback.format_exc()
-            end = '=' * 80
-            message = f'\n{header}\n{error}\n{end}'
-            
-            print(err(message))
+            print(err(make_box_message('Internal error', traceback.format_exc())))
     return wrapper_print_exceptions
 
 def arg_count(mini: int, maxi: int = None) -> Callable:
