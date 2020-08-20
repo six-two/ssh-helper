@@ -4,6 +4,9 @@
 TODO:
 add typing annotations
 mv, edit, view
+list_commands (all in path)
+get_env
+sysinfo
 (upload|download)_dir
 file name argument parsing
 creating shortcuts (like R1, L4)

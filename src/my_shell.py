@@ -14,45 +14,28 @@ import termcolor
 
 NAME = 'Dummie{}ell'.format(termcolor.colored('SSH', 'red'))
 HELP_TIP = 'Type "help" or "?" to list commands.'
-USAGE = """
-ssh-helper
 
-Some commands can be executed on either localy or remotely. They are prefixed with a "(l)" like in "(l)pwd".
-In this case use "pwd" to execute the command on the remote machine, use "lpwd" to execute the command on the local machine
-Other conventions: 
-  <mandatory_argument>
-  [optional_argument]
-  (use_either_this_command | or_use_this_one)
-
-Commands:
-d                | Enable debug mode
-(l)pwd           | Print the working directory's path
-(l)ls [path]     | Lists all files and directories in the working directory (or path if supplied)
-(l)cd [path]     | Change the working directory (to path if supplied, otherwise to the users home directory)
-(help | ?)       | Show this help message
-(help | ?) <cmd> | Shows help about the given command
-(shell | !)      | Opens an interactive ssh session. Exit it as usual (via "exit" or Ctrl-D)
-(shell | !) <cmd>| The given command will be run in a shell on the remote machine
-"""
-
-def get_available_commands():
+def get_available_commands() -> List[str]:
     commands = []
     usage_start = 'Usage: '
     alias_regex = re.compile(r'\((.*?) \| (.*?)\) (.*)')
     for member_name in dir(MyShell):
         member = getattr(MyShell, member_name)
         if member_name.startswith('do_') and callable(member):
-            usage = member.__doc__.split('\n')[0]
-            if usage.startswith(usage_start):
-                usage = usage[len(usage_start):]
-                result = alias_regex.match(usage)
-                if result:
-                    name, alias, arguments = result.groups()
-                    commands += [f'{name} {arguments}', f'{alias} {arguments}']
+            if member.__doc__:
+                usage = member.__doc__.split('\n')[0]
+                if usage.startswith(usage_start):
+                    usage = usage[len(usage_start):]
+                    result = alias_regex.match(usage)
+                    if result:
+                        name, alias, arguments = result.groups()
+                        commands += [f'{name} {arguments}', f'{alias} {arguments}']
+                    else:
+                        commands.append(usage)
                 else:
-                    commands.append(usage)
+                    print(f'[Warning] Bad usage format: "{usage}"')
             else:
-                print(f'[Warning] Bad usage format: "{usage}"')
+                print(f'Warning: Method "{member_name}" has no docstring')
 
     return sorted(commands)
 
@@ -108,31 +91,34 @@ class MyShell(cmd.Cmd):
         print(HELP_TIP)
         return False
 
-    @no_args
-    def do_EOF(self, arg: str) -> bool:
+    @arg_count(0)
+    def do_EOF(self) -> bool:
         '''Usage: EOF
 Exit this shell. You can also trigger this by pressing Ctrl-D on an empty prompt'''
         return True
 
-    @no_args
-    def do_exit(self, arg: str) -> bool:
+    @arg_count(0)
+    def do_exit(self) -> bool:
         '''Usage: exit
 Exit this interactive shell'''
         return True
 
+    # No decorator, so that we can pass the raw string through
     def do_shell(self, arg: str) -> None:
         '''Usage: (shell | !) [unix_command]
 If called without arguments, it will open a new interactive ssh session with the remote computer.
 If called with a unix_command, it will run the unix_command on the remote machine'''
         self.executor.shell(REMOTE, arg)
 
+    # No decorator, so that we can pass the raw string through
     def do_lshell(self, arg: str) -> None:
         '''Usage: (lshell | l!) [unix_command]
 If called without arguments, it will open a new interactive shell on the local computer.
 If called with a unix_command, it will run the unix_command on the local machine'''
         self.executor.shell(LOCAL, arg)
 
-    def do_help(self, arg: str) -> None:
+    @arg_count(0, 1)
+    def do_help(self, arg: str = None) -> None:
         '''Usage: (help | ?) [command]
 If command is given, a help message about the command will be shown.
 Otherwise a list of valid commands and their usage is displayed'''
@@ -141,111 +127,122 @@ Otherwise a list of valid commands and their usage is displayed'''
             for command in get_available_commands():
                 print(f'  {command}')
         else:
+            # Work around for '??'
+            if arg == '?':
+                arg = 'help'
             super().do_help(arg)
 
-    @no_args
-    def do_dbg(self, arg: str) -> None:
+    @arg_count(0)
+    def do_dbg(self) -> None:
         '''Usage: dbg
 Enables debugging output. This may interfere with some features like command completion'''
         set_debug(True)
         print("Debug mode enabled!")
 
-    @no_args
-    def do_error(self, arg: str) -> None:
+    @arg_count(0)
+    def do_error(self) -> None:
         '''Usage: error
 Causes an internal error. Used to test exception handling'''
         raise Exception('Test exception')
 
 # ======================= (l)ls =======================
-    def do_ls(self, arg: str) -> None:
+    @arg_count(0, 1)
+    def do_ls(self, path: str = None) -> None:
         '''Usage: ls [path]
 List the files in the current directory or in the given path on the remote computer'''
-        self.executor.ls(REMOTE, arg)
+        self.executor.ls(REMOTE, path)
 
     def complete_ls(self, *args) -> List[str]:
         return self.complete_path_single_argument(REMOTE, True, *args)
 
-    def do_lls(self, arg: str) -> None:
+    @arg_count(0, 1)
+    def do_lls(self, path: str = None) -> None:
         '''Usage: lls [path]
 List the files in the current directory or in the given path on the local computer'''
-        self.executor.ls(LOCAL, arg)
+        self.executor.ls(LOCAL, path)
 
     def complete_lls(self, *args) -> List[str]:
         return self.complete_path_single_argument(LOCAL, True, *args)
 
 # ======================= (l)pwd =======================
-
-    @no_args
-    def do_pwd(self, arg: str) -> None:
+    @arg_count(0)
+    def do_pwd(self) -> None:
         '''Usage: pwd
 Show the full path of your current working directory on the remote computer'''
         self.executor.pwd(REMOTE)
 
-    @no_args
-    def do_lpwd(self, arg: str) -> None:
+    @arg_count(0)
+    def do_lpwd(self) -> None:
         '''Usage: lpwd
 Show the full path of your current working directory on the local computer'''
         self.executor.pwd(LOCAL)
 
 # ======================= (l)rm =======================
-    def do_rm(self, arg: str) -> None:
-        '''Usage: rm [path]
+    @arg_count(1)
+    def do_rm(self, path: str) -> None:
+        '''Usage: rm <path>
 Remove the file with the given path from the remote computer'''
-        self.executor.execute_command(REMOTE, ['rm', arg])
+        self.executor.execute_command(REMOTE, ['rm', path])
 
     def complete_rm(self, *args) -> List[str]:
         return self.complete_path_single_argument(REMOTE, True, *args)
 
-    def do_lrm(self, arg: str) -> None:
-        '''Usage: lrm [path]
+    @arg_count(1)
+    def do_lrm(self, path: str) -> None:
+        '''Usage: lrm <path>
 Remove the file with the given path from the local computer'''
-        self.executor.execute_command(LOCAL, ['rm', arg])
+        self.executor.execute_command(LOCAL, ['rm', path])
 
     def complete_lrm(self, *args) -> List[str]:
         return self.complete_path_single_argument(LOCAL, True, *args)
 
 # ======================= (l)rmdir =======================
-    def do_rmdir(self, arg: str) -> None:
-        '''Usage: rmdir [path]
+    @arg_count(1)
+    def do_rmdir(self, path: str) -> None:
+        '''Usage: rmdir <path>
 Remove the directory with the given path from the remote computer'''
-        self.executor.execute_command(REMOTE, ['rm', '-r', arg])
+        self.executor.execute_command(REMOTE, ['rm', '-r', path])
 
     def complete_rmdir(self, *args) -> List[str]:
         return self.complete_path_single_argument(REMOTE, True, *args)
 
-    def do_lrmdir(self, arg: str) -> None:
-        '''Usage: lrmdir [path]
+    @arg_count(1)
+    def do_lrmdir(self, path: str) -> None:
+        '''Usage: lrmdir <path>
 Remove the directory with the given path from the local computer'''
-        self.executor.execute_command(LOCAL, ['rm', '-r', arg])
+        self.executor.execute_command(LOCAL, ['rm', '-r', path])
 
     def complete_lrmdir(self, *args) -> List[str]:
         return self.complete_path_single_argument(LOCAL, True, *args)
 
 
 # ======================= (l)cd =======================
-    def do_cd(self, arg: str) -> None:
+    @arg_count(0, 1)
+    def do_cd(self, path: str = None) -> None:
         '''Usage: cd [path]
 If a path is given, the remote working directory is set to path.
 If no path is given, the remote working directory is set to the users home directory.'''
-        self.executor.cd(REMOTE, arg)
+        self.executor.cd(REMOTE, path)
 
     def complete_cd(self, *args) -> List[str]:
         return self.complete_path_single_argument(REMOTE, False, *args)
 
-    def do_lcd(self, arg: str) -> None:
+    @arg_count(0, 1)
+    def do_lcd(self, path: str = None) -> None:
         '''Usage: lcd [path]
 If a path is given, the local working directory is set to path.
 If no path is given, the local working directory is set to the users home directory.'''
-        self.executor.cd(LOCAL, arg)
+        self.executor.cd(LOCAL, path)
 
     def complete_lcd(self, *args) -> List[str]:
         return self.complete_path_single_argument(LOCAL, False, *args)
 
 # ======================= download =======================
-    def do_download(self, arg: str) -> None:
+    @arg_count(1)
+    def do_download(self, path: str) -> None:
         '''Usage: download <path>
 Download the file located at path from the local computer and saves it with the same filename in the working directory on the local computer.'''
-        remote_path = arg
+        remote_path = path
         local_path = os.path.basename(remote_path)
         is_upload = False
         is_directory = False
@@ -254,14 +251,26 @@ Download the file located at path from the local computer and saves it with the 
     def complete_download(self, *args) -> List[str]:
         return self.complete_path_single_argument(REMOTE, True, *args)
 
-    def do_upload(self, arg: str) -> None:
+# ======================= upload =======================
+    @arg_count(1)
+    def do_upload(self, path: str) -> None:
         '''Usage: upload <path>
 Upload the file located at path from the local computer and saves it with the same filename in the working directory on the remote computer.'''
-        local_path = arg
+        local_path = path
         remote_path = os.path.basename(local_path)
         is_upload = True
         is_directory = False
         self.executor.file_transfer(remote_path, local_path, is_upload, is_directory)
 
     def complete_upload(self, *args) -> List[str]:
+        return self.complete_path_single_argument(LOCAL, True, *args)
+
+# ======================= edit =======================
+    @arg_count(1)
+    def do_edit(self, path: str) -> None:
+        '''Usage: edit <path>
+Edit the file located at path on the remote computer'''
+        self.executor.execute_command(REMOTE, ['nano', path])
+
+    def complete_edit(self, *args) -> List[str]:
         return self.complete_path_single_argument(LOCAL, True, *args)
