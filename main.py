@@ -7,11 +7,18 @@ mv, edit, view
 list_commands (all in path)
 get_env
 sysinfo
+pgrep, pkill
+run <rpath>
+upload_and_run <lpath>
 commands [pattern]
 (upload|download)_dir
 file name argument parsing
 creating shortcuts (like R1, L4)
 argument count macro
+
+================ nice to have(s) =================
+Use libssh to prevent having to log in again for every command.
+Having a ssh login every second might look very suspicious and has a bit of overhead
 '''
 
 '''
