@@ -1,7 +1,7 @@
 # pylint: disable=unused-wildcard-import
 import cmd
 import os
-from typing import List
+from typing import List, Sequence
 import re
 # Local modules
 from .common import *
@@ -15,20 +15,23 @@ import termcolor
 NAME = 'Dummie{}ell'.format(termcolor.colored('SSH', 'red'))
 HELP_TIP = 'Type "help" or "?" to list commands.'
 
-def get_available_commands() -> List[str]:
+def get_available_commands(exclude_list: Sequence[str] = []) -> List[str]:
     commands = []
     alias_regex = re.compile(r'\((.*?) \| (.*?)\) (.*)')
     for member_name in dir(MyShell):
-        member = getattr(MyShell, member_name)
-        if member_name.startswith('do_') and callable(member):
-            usage = get_usage(member)
-            if usage:
-                result = alias_regex.match(usage)
-                if result:
-                    name, alias, arguments = result.groups()
-                    commands += [f'{name} {arguments}', f'{alias} {arguments}']
-                else:
-                    commands.append(usage)
+        if member_name.startswith('do_') and member_name not in exclude_list:
+            member = getattr(MyShell, member_name)
+            # Only accept functions
+            if callable(member):
+                usage = get_usage(member)
+                if usage:
+                    result = alias_regex.match(usage)
+                    if result:
+                        # TODO handle duplicates and aliases
+                        name, alias, arguments = result.groups()
+                        commands += [f'{name} {arguments}', f'{alias} {arguments}']
+                    else:
+                        commands.append(usage)
 
     return sorted(commands)
 
@@ -120,7 +123,7 @@ If command is given, a help message about the command will be shown.
 Otherwise a list of valid commands and their usage is displayed'''
         if not arg:
             print("Available commands:")
-            for command in get_available_commands():
+            for command in get_available_commands(exclude_list=['do_EOF']):
                 print(f'  {command}')
         else:
             # Work around for '??'
@@ -299,3 +302,12 @@ Examples:
  - "sc admin" will find any commands that contain the word "admin"'''
         commands = self.executor.get_commands(LOCAL, pattern)
         print('\n'.join(commands))
+
+# ===============
+    def do_test(self, line):
+        '''Hello world
+
+This text is multi-
+line!'''
+        print_debug('Debug is enabled\n')
+        print('\n'.join(sorted(dir(self))))

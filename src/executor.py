@@ -79,7 +79,7 @@ class Executor:
         c = self._prepare_command(is_remote, command, ssh_options, shell)
         execute_in_foreground(c, self.local_path)
 
-    def complete_path(self, remote: IsRemote, allow_files, path_up_to_cursor, text) -> List[str]:
+    def complete_path(self, remote: IsRemote, allow_files: bool, path_up_to_cursor, text) -> List[str]:
         # #TODO improve option passing
         print_debug(f'[Complete path] remote={remote} "{path_up_to_cursor}" "{text}"')
         try:

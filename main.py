@@ -2,9 +2,8 @@
 
 '''
 TODO:
-add typing annotations
+add typing annotations everywhere
 mv, edit, view
-list_commands (all in path)
 get_env
 sysinfo
 pgrep, pkill
@@ -12,9 +11,8 @@ run <rpath>
 upload_and_run <lpath>
 commands [pattern]
 (upload|download)_dir
-file name argument parsing
+file name argument parsing with special cases
 creating shortcuts (like R1, L4)
-argument count macro
 
 ================ nice to have(s) =================
 Use libssh to prevent having to log in again for every command.

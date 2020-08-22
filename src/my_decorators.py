@@ -1,7 +1,7 @@
 # pylint: disable=unused-wildcard-import
 import functools
 import traceback
-from typing import Optional, Callable, Any, List
+from typing import Optional, Callable, Any, List, Sequence
 # Local modules
 from .common import *
 from .executor import CommandExecutionFailed
@@ -66,3 +66,14 @@ def decorate_all_methods_starting_with(decorator: Callable[[Callable], Callable]
                     setattr(my_object, member_name, decorator(member))
         return my_object
     return wrapper_decorate_all_methods_starting_with
+
+# Put here to prevent a circular import error
+from .command_builder import Command
+
+def make_command(cls, name, *aliases) -> Callable:
+    '''This decorator does not actually modify the function, it just adds it to the given "cls".'''
+    def decorator_make_command(fn: Callable) -> Callable:
+        names = [name, *aliases]
+        Command(fn).apply_to(cls, names)
+        return fn
+    return decorator_make_command
