@@ -87,18 +87,6 @@ class MyShell(cmd.Cmd):
         print(HELP_TIP)
         return False
 
-    @arg_count(0)
-    def do_EOF(self) -> bool:
-        '''Usage: EOF
-Exit this shell. You can also trigger this by pressing Ctrl-D on an empty prompt'''
-        return True
-
-    @arg_count(0)
-    def do_exit(self) -> bool:
-        '''Usage: exit
-Exit this interactive shell'''
-        return True
-
     # No decorator, so that we can pass the raw string through
     def do_shell(self, arg: str) -> None:
         '''Usage: (shell | !) [unix_command...]
@@ -130,25 +118,6 @@ Otherwise a list of valid commands and their usage is displayed'''
             if arg == '?':
                 arg = 'help'
             super().do_help(arg)
-
-#     @arg_count(1)
-#     def do_debug(self, value: str) -> None:
-#         '''Usage: debug <on | off>
-# Enables / disables debugging output. This may interfere with some features like command completion'''
-#         if value == 'on':
-#             set_debug(True)
-#             print("Debug mode enabled!")
-#         elif value == 'off':
-#             set_debug(False)
-#             print("Debug mode disabled!")
-#         else:
-#             print_usage(self.do_debug)
-
-    @arg_count(0)
-    def do_error(self) -> None:
-        '''Usage: error
-Causes an internal error. Used to test exception handling'''
-        raise Exception('Test exception')
 
 # ======================= (l)ls =======================
     @arg_count(0, 1)
@@ -310,4 +279,12 @@ Examples:
 This text is multi-
 line!'''
         print_debug('Debug is enabled\n')
-        print('\n'.join(sorted(dir(self))))
+        import inspect
+        for member_name in sorted(dir(self)):
+            member = getattr(self, member_name)
+            if callable(member) and not member_name.startswith('__'):
+                print(member_name, end='')
+                try:
+                    print(inspect.signature(member))
+                except:
+                    print(' <-- Could not determine signature')

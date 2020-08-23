@@ -14,8 +14,12 @@ from .complete import UsageException
 
 
 class Command:
-    def __init__(self, fn: Callable) -> None:
+    def __init__(self, fn: Callable, names: Sequence[str]) -> None:
+        if len(names) < 1:
+            raise Exception('Trying to create command with no name(s)')
+
         self.fn = fn
+        self.names = names
         if not fn.__doc__:
             print(warn(f'Method {fn.__name__} has no doc string'))
             fn.__doc__ = 'No description is available for this command'
@@ -30,23 +34,16 @@ class Command:
             error_arg_count = f'between {self.min_args} and {self.max_args} arguments'
         self.err_arg_count = f'This command expects {error_arg_count}, but it got {{}}!'
 
-    def apply_to(self, cls, names: Sequence[str]) -> None:
-        if len(names) < 1:
-            raise Exception('Trying to create command with no name(s)')
-
-        help_header = f'Usage: {names[0]} {self.usage_params}'
-        if len(names) > 1:
-            alias_str = ', '.join(names[1:])
-            help_header += f'\nAliases: {alias_str}'
-
-        self.fn.__doc__ = f'{help_header}\n\n{self.fn.__doc__}'
+    def apply_to(self, cls) -> None:
         complete_command = self.create_complete_command()
 
-        for name in names:
+        for name in self.names:
             if getattr(cls, f'do_{name}', None) is not None:
                 raise Exception(f'Duplicate definition of method "do_{name}"')
             setattr(cls, f'do_{name}', self.create_do_command(name))
-            setattr(cls, f'complete_{name}', complete_command)
+            if len(self.params) != 0:
+                setattr(cls, f'complete_{name}', complete_command)
+            setattr(cls, f'help_{name}', self.help_command)
 
     def parse_args(self, args: Sequence[str]) -> Optional[List]:
         parsed = []
@@ -74,21 +71,32 @@ class Command:
         return parsed
 
     def create_do_command(self, name: str) -> Callable:
-        @functools.wraps(self.fn)
-        @print_exceptions
-        def wrapper_do_command(self_of_cmd, args_str: str):
+        def wrapper_do_command(self_of_cmd, args_str: str) -> bool:
             args = split_args(args_str)
 
             if self.min_args <= len(args) <= self.max_args:
                 parsed_args = self.parse_args(args)
-                if parsed_args:
-                    return self.fn(self_of_cmd, *parsed_args)
+                if parsed_args is not None:
+                    ret = self.fn(self_of_cmd, *parsed_args)
+                    return bool(ret)
+                else:
+                    print_debug('Usage error')
+                    return False
             else:
                 real_arg_count = pluralize(len(args), 'argument')
                 print(err(self.err_arg_count.format(real_arg_count)))
                 print(f'Usage: {name} {self.usage_params}')
+                return False
 
-        return wrapper_do_command
+        return print_exceptions(wrapper_do_command)
+
+    def help_command(self):
+        print(f'Usage: {self.names[0]} {self.usage_params}')
+        if len(self.names) > 1:
+            alias_str = ', '.join(self.names[1:])
+            print(f'Aliases: {alias_str}')
+        if self.fn.__doc__:
+            print('\n' + self.fn.__doc__)
 
     def create_complete_command(self):
         @print_exceptions

@@ -6,6 +6,7 @@ from typing import Optional, Callable, Any, List, Sequence
 from .common import *
 from .executor import CommandExecutionFailed
 
+# TODO remove
 def _parse_arguments(arg: str) -> List[str]:
     #TODO this is just a bandaid, needs support for escaped spaces / real argument parsing
     return [a for a in arg.split(' ') if a]
@@ -27,6 +28,7 @@ def print_exceptions(fn: Callable) -> Callable:
             print(err(make_box_message('Internal error', traceback.format_exc())))
     return wrapper_print_exceptions
 
+# TODO remove
 def arg_count(mini: int, maxi: int = None) -> Callable:
     '''
     Checks the number of arguments that a method receives.
@@ -74,6 +76,6 @@ def make_command(cls, name, *aliases) -> Callable:
     '''This decorator does not actually modify the function, it just adds it to the given "cls".'''
     def decorator_make_command(fn: Callable) -> Callable:
         names = [name, *aliases]
-        Command(fn).apply_to(cls, names)
+        Command(fn, names).apply_to(cls)
         return fn
     return decorator_make_command
