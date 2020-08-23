@@ -131,18 +131,18 @@ Otherwise a list of valid commands and their usage is displayed'''
                 arg = 'help'
             super().do_help(arg)
 
-    @arg_count(1)
-    def do_debug(self, value: str) -> None:
-        '''Usage: debug <on | off>
-Enables / disables debugging output. This may interfere with some features like command completion'''
-        if value == 'on':
-            set_debug(True)
-            print("Debug mode enabled!")
-        elif value == 'off':
-            set_debug(False)
-            print("Debug mode disabled!")
-        else:
-            print_usage(self.do_debug)
+#     @arg_count(1)
+#     def do_debug(self, value: str) -> None:
+#         '''Usage: debug <on | off>
+# Enables / disables debugging output. This may interfere with some features like command completion'''
+#         if value == 'on':
+#             set_debug(True)
+#             print("Debug mode enabled!")
+#         elif value == 'off':
+#             set_debug(False)
+#             print("Debug mode disabled!")
+#         else:
+#             print_usage(self.do_debug)
 
     @arg_count(0)
     def do_error(self) -> None:

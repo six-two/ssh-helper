@@ -73,10 +73,12 @@ class Executor:
 
     def execute_in_background(self, is_remote: IsRemote, command: Sequence[str], ssh_options: Sequence[str] = None, shell=False) -> str:
         c = self._prepare_command(is_remote, command, ssh_options, shell)
+        print_debug(f'[cmd:bg] {shlex.join(c)}')
         return execute_in_background(c, self.local_path)
 
     def execute(self, is_remote: IsRemote, command: Sequence[str], ssh_options: Sequence[str] = None, shell=False) -> None:
         c = self._prepare_command(is_remote, command, ssh_options, shell)
+        print_debug(f'[cmd] {shlex.join(c)}')
         execute_in_foreground(c, self.local_path)
 
     def complete_path(self, remote: IsRemote, allow_files: bool, path_up_to_cursor, text) -> List[str]:

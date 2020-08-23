@@ -10,6 +10,7 @@ import traceback
 #local
 from .common import *
 from .my_decorators import print_exceptions
+from .complete import UsageException
 
 
 class Command:
@@ -47,14 +48,41 @@ class Command:
             setattr(cls, f'do_{name}', self.create_do_command(name))
             setattr(cls, f'complete_{name}', complete_command)
 
+    def parse_args(self, args: Sequence[str]) -> Optional[List]:
+        parsed = []
+        print_debug(f'before parse: {args}')
+        for i in range(len(args)):
+            # Get the class of the parameter
+            param_cls = self.params[i].annotation
+            arg: Any = args[i]
+
+            if param_cls != inspect.Parameter.empty:
+                try:
+                    # Replace the argument with its parsed value
+                    arg = param_cls(arg)
+                except UsageException as ex:
+                    # Print an error message and
+                    print(err(f'Usage error in argument {i+1}: {ex}'))
+                    return None
+                print_debug(f'Param converted to {param_cls}')
+            else:
+                print_debug('Param {i}: No type in method signature')
+
+            parsed.append(arg)
+
+        print_debug(f'after parse: {parsed}')
+        return parsed
+
     def create_do_command(self, name: str) -> Callable:
         @functools.wraps(self.fn)
         @print_exceptions
         def wrapper_do_command(self_of_cmd, args_str: str):
-            args = parse_args(args_str)
+            args = split_args(args_str)
 
             if self.min_args <= len(args) <= self.max_args:
-                return self.fn(self_of_cmd, *args)
+                parsed_args = self.parse_args(args)
+                if parsed_args:
+                    return self.fn(self_of_cmd, *parsed_args)
             else:
                 real_arg_count = pluralize(len(args), 'argument')
                 print(err(self.err_arg_count.format(real_arg_count)))
@@ -71,7 +99,7 @@ class Command:
             before_cursor = before_cursor.split(' ', maxsplit=1)[1]
 
             print_debug(before_cursor)
-            args = parse_incomplete_args(before_cursor)
+            args = split_incomplete_args(before_cursor)
             print_debug(args)
 
             if len(args) > self.max_args:
@@ -92,12 +120,12 @@ class Command:
                 return []
         return wrapper_complete_command
 
-def parse_incomplete_args(incomplete_arg_str: str) -> List[str]:
+def split_incomplete_args(incomplete_arg_str: str) -> List[str]:
     # add character to test if the last param should be extended
     # or if a new argument should be started
     TEST_STRING = '_new'
     before_cursor = incomplete_arg_str + TEST_STRING
-    args = parse_args(before_cursor, may_be_cut_off=True)
+    args = split_args(before_cursor, may_be_cut_off=True)
     # Remove TEST_STRING
     if args[-1] == TEST_STRING:
         # Keep the empty argument to complete
@@ -111,7 +139,7 @@ def parse_incomplete_args(incomplete_arg_str: str) -> List[str]:
     return args
 
 
-def parse_args(arg_str: str, may_be_cut_off=False) -> List[str]:
+def split_args(arg_str: str, may_be_cut_off=False) -> List[str]:
     if arg_str:
         return shlex.split(arg_str)
     else:

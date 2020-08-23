@@ -33,7 +33,7 @@ src_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'src')
 sys.path.append(src_dir)
 # Import local package
 # pylint: disable=import-error,no-name-in-module
-from src import SshSettings, MyShell, get_available_commands, err
+from src import SshSettings, MyShell, get_available_commands, err, set_debug
 
 available_commands = ''.join([f'\n  {c}' for c in get_available_commands()])
 
@@ -44,7 +44,12 @@ parser = argparse.ArgumentParser(
 parser.add_argument('user_at_host', help='<SSH username>@<hostname/IP address>')
 parser.add_argument('--password', '-p', help='SSH login password')
 parser.add_argument('--command', '-c', nargs='+', help='run command and exit')
+parser.add_argument('--debug', '-d', action='store_true', help='start with debug enabled')
 args = parser.parse_args()
+
+if args.debug:
+    print('debug on')
+    set_debug(True)
 
 try:
     user, host = args.user_at_host.split('@')
