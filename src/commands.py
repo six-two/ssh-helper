@@ -1,5 +1,7 @@
 # pylint: disable=unused-wildcard-import
 import os
+import re
+from typing import List, Optional
 # Local
 from .common import *
 from .my_shell import MyShell
@@ -7,6 +9,20 @@ from .command_builder import *
 from .complete import *
 from .my_decorators import make_command
 
+
+def print_matching(lines: List[str], regex: Optional[str], fn_line_key: Callable[[str], str] = None) -> None:
+    '''Basically this does what "grep" does'''
+    lines = [l for l in lines if l]
+    if regex is None:
+        for l in lines:
+            print(l)
+    else:
+        compiled_regex = re.compile(regex)
+        for l in lines:
+            key = fn_line_key(l) if fn_line_key else l
+            print_debug(f'key: "{key}"')
+            if compiled_regex.search(key):
+                print(l)
 
 @make_command(MyShell, 'Open a remote shell', 'shell', 'r', raw_arg=True)
 def shell(my_shell: MyShell, arg: str) -> None:
@@ -94,7 +110,7 @@ def lcd(my_shell: MyShell, path: LFolder = LFolder('')) -> None:
 If no path is given, the local working directory is set to the users home directory.'''
     my_shell.executor.cd(LOCAL, path.value())
 
-@make_command(MyShell, 'Download a remote file', 'download')
+@make_command(MyShell, 'Download a remote file', 'download', 'dl')
 def download(my_shell: MyShell, path: RFile) -> None:
     '''Download the file located at path from the local computer and saves it with the same filename in the working directory on the local computer.'''
     remote_path = path.value()
@@ -103,7 +119,7 @@ def download(my_shell: MyShell, path: RFile) -> None:
     is_directory = False
     my_shell.executor.file_transfer(remote_path, local_path, is_upload, is_directory)
 
-@make_command(MyShell, 'Upload a local file', 'upload')
+@make_command(MyShell, 'Upload a local file', 'upload', 'ul')
 def upload(my_shell: MyShell, path: LFile) -> None:
     '''Upload the file located at path from the local computer and saves it with the same filename in the working directory on the remote computer.'''
     local_path = path.value()
@@ -117,25 +133,25 @@ def edit(my_shell: MyShell, path: RFile) -> None:
     '''Edit the file located at path on the remote computer'''
     my_shell.executor.execute(REMOTE, ['nano', path.value()])
 
-@make_command(MyShell, 'List/search remote commands', 'search_commands', 'sc')
+@make_command(MyShell, 'List/search remote commands', 'search_commands')
 def sc(my_shell: MyShell, pattern: str = None) -> None:
     '''Lists all commands in the remote computers path, that match the regex.
 
 Examples: 
 - "sc ^php" will find all commands that start with "php"
 - "sc admin" will find any commands that contain the word "admin"'''
-    commands = my_shell.executor.get_commands(REMOTE, pattern)
-    print('\n'.join(commands))
+    commands = my_shell.executor.all_commands(REMOTE)
+    print_matching(commands, pattern)
 
-@make_command(MyShell, 'List/search local commands', 'lsearch_commands', 'lsc')
+@make_command(MyShell, 'List/search local commands', 'lsearch_commands')
 def lsc(my_shell: MyShell, pattern: str = None) -> None:
     '''Lists all commands in the local computers path, that match the regex
 
 Examples: 
 - "sc ^php" will find all commands that start with "php"
 - "sc admin" will find any commands that contain the word "admin"'''
-    commands = my_shell.executor.get_commands(LOCAL, pattern)
-    print('\n'.join(commands))
+    commands = my_shell.executor.all_commands(REMOTE)
+    print_matching(commands, pattern)
 
 @make_command(MyShell, 'test 123', 'test')
 def test(my_shell: MyShell) -> None:
@@ -154,3 +170,31 @@ line!'''
             except:
                 print(' <-- Could not determine signature')
 
+@make_command(MyShell, 'Execute a remote file', 'run')
+def run(my_shell: MyShell, path: RFile) -> None:
+    '''Mark the given file as executeable and then execute it'''
+    lpath = os.path.join('.', path.value())
+    chmod_and_exec = ['chmod', '+x', lpath, ';', lpath]
+    my_shell.executor.execute(REMOTE, chmod_and_exec, shell=True)
+
+@make_command(MyShell, 'Upload local file and execute on remote', 'upload_and_run', 'upr')
+def upload_and_run(my_shell: MyShell, path: LFile) -> None:
+    '''Mark the given file as executeable and then execute it'''
+    file_name = RFile(os.path.basename(path.value()))
+
+    upload(my_shell, path)
+    run(my_shell, file_name)
+
+@make_command(MyShell, 'Print remote variables', 'search_vars', 'sv')
+def search_vars(my_shell: MyShell, regex: str = None) -> None:
+    '''Without arguments: Prints all remote variables.
+With argument: Only variables that contain pattern'''
+    env_vars = my_shell.executor.execute_in_background(REMOTE, ['printenv']).split('\n')
+    print_matching(env_vars, regex, lambda l: l.split('=')[0])
+
+@make_command(MyShell, 'Print local variables', 'lsearch_vars', 'lsv')
+def lsearch_vars(my_shell: MyShell, regex: str = None) -> None:
+    '''Without arguments: Prints all local variables.
+With argument: Only variables that contain pattern'''
+    env_vars = my_shell.executor.execute_in_background(LOCAL, ['printenv']).split('\n')
+    print_matching(env_vars, regex, lambda l: l.split('=')[0])

@@ -166,18 +166,13 @@ class Executor:
     #     for name, value in zip(variable_names, values):
     #         pass
 
-    def get_commands(self, remote: IsRemote, pattern: str = None) -> List[str]:
-        # ['ls', '-1', '$PATH']
+    def all_commands(self, remote: IsRemote) -> List[str]:
         path = self.execute_in_background(remote, ['printenv', 'PATH'])
         path_array = path.strip().split(':')
         output = self.execute_in_background(remote, ['ls', '-1', *path_array])
         commands = [line for line in output.split('\n') if line and not line.startswith('/')]
         # remove duplicates and sort alphabetical
-        commands = sorted(set(commands))
-        if pattern:
-            regex = re.compile(pattern)
-            commands = [c for c in commands if regex.search(c)]
-        return commands
+        return sorted(set(commands))
 
     def file_transfer(self, src: str, dst: str, is_upload: bool, is_directory: bool) -> None:
         command = self.ssh_helper.make_scp_command(src, dst, is_upload, is_directory)

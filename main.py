@@ -3,14 +3,18 @@
 '''
 TODO:
 add typing annotations everywhere
-mv, edit, view
-get_env
+handle args: support primitives like str, int, bool, float
+ - abstract complete folder
+ - make it into reuseable separate package
+
+Commands:
+mv, cp?
+edit, view
 sysinfo
+resource
 pgrep, pkill
-run <rpath>
-upload_and_run <lpath>
-commands [pattern]
 (upload|download)_dir
+
 file name argument parsing with special cases
 creating shortcuts (like R1, L4)
 

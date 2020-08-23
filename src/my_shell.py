@@ -16,6 +16,25 @@ from tabulate import tabulate
 NAME = 'Dummie{}ell'.format(termcolor.colored('SSH', 'red'))
 HELP_TIP = 'Type "help" or "?" to list commands.'
 
+def print_usage_table(cls) -> None:
+    commands = []
+    for member_name in dir(cls):
+        if member_name.startswith('command_'):
+            commands.append(getattr(cls, member_name))
+
+    descriptions = []
+    descriptions.append(('?', 'Alias for "help"'))
+    descriptions.append(('!', 'Alias for "shell"'))
+    descriptions.append(('help', 'Shows usage for available commands'))
+    for c in set(commands):
+        name = c.names[0]
+        descriptions.append((name, c.short_description))
+        for alias_name in c.names[1:]:
+            descriptions.append((alias_name, f'Alias for "{name}"'))
+    descriptions = sorted(descriptions)
+
+    table = tabulate(descriptions, headers=['Command', 'Description'], tablefmt="psql")
+    print(f'\n{table}\n')
 
 class MyShell(cmd.Cmd):
     intro = f'Welcome to the {NAME}. {HELP_TIP}\n'
@@ -61,25 +80,7 @@ class MyShell(cmd.Cmd):
 If command is given, a help message about the command will be shown.
 Otherwise a list of valid commands and their usage is displayed'''
         if not arg:
-            commands = []
-            for member_name in dir(self):
-                if member_name.startswith('command_'):
-                    commands.append(getattr(self, member_name))
-
-            descriptions = []
-            descriptions.append(('?', 'Alias for "help"'))
-            descriptions.append(('!', 'Alias for "shell"'))
-            descriptions.append(('help', 'Shows usage for available commands'))
-            for c in set(commands):
-                name = c.names[0]
-                descriptions.append((name, c.short_description))
-                for alias_name in c.names[1:]:
-                    descriptions.append((alias_name, f'Alias for "{name}"'))
-            descriptions = sorted(descriptions)
-
-            print()
-            print(tabulate(descriptions, headers=['Command', 'Description'], tablefmt="psql"))
-            print()
+            print_usage_table(MyShell)
         else:
             # Work around for '??' and '?!'
             if arg == '?':
