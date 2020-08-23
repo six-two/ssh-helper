@@ -82,7 +82,7 @@ class Command:
 
         return print_exceptions(wrapper_do_command)
 
-    def help_command(self, self_of_cmd):
+    def help_command(self, self_of_cmd) -> None:
         print(f'Usage: {self.names[0]} {self.usage_params}')
         if len(self.names) > 1:
             alias_str = ', '.join(self.names[1:])
@@ -113,8 +113,8 @@ class Command:
                 param_cls = self.params[arg_index].annotation
                 # Call the complete function, if it is defineed
                 return param_cls.complete(self_of_cmd, last_arg, text)
-            except:
-                traceback.print_exc()
+            except Exception as ex:
+                print_debug(ex)
                 # Complete function is probably not defined
                 return []
         return print_exceptions(wrapper_complete_command)

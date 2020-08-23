@@ -141,7 +141,7 @@ class Executor:
         print('\n'.join(lines))
 
 
-    def cd(self, is_remote: IsRemote, path) -> None:
+    def cd(self, is_remote: IsRemote, path: str) -> None:
         if path:
             new_cwd = self.cwd(is_remote)
             new_cwd = os.path.join(new_cwd, path) if new_cwd else path

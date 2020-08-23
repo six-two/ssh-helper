@@ -43,14 +43,14 @@ You can trigger this by pressing Ctrl-D on an empty prompt.'''
     return True
 
 @make_command(MyShell, 'List remote files', 'ls')
-def ls(my_shell: MyShell, path: str = None) -> None:
+def ls(my_shell: MyShell, path: RFile = RFile('.')) -> None:
     '''List the files in the current directory or in the given path on the remote computer'''
-    my_shell.executor.ls(REMOTE, path)
+    my_shell.executor.ls(REMOTE, path.value())
 
 @make_command(MyShell, 'List local files', 'lls')
-def lls(my_shell: MyShell, path: str = None) -> None:
+def lls(my_shell: MyShell, path: LFile = LFile('.')) -> None:
     '''List the files in the current directory or in the given path on the local computer'''
-    my_shell.executor.ls(LOCAL, path)
+    my_shell.executor.ls(LOCAL, path.value())
 
 @make_command(MyShell, 'Print remote working directory', 'pwd')
 def pwd(my_shell: MyShell) -> None:
@@ -63,61 +63,61 @@ def lpwd(my_shell: MyShell) -> None:
     my_shell.executor.execute(LOCAL, 'pwd')
 
 @make_command(MyShell, 'Delete a remote file', 'rm')
-def rm(my_shell: MyShell, path: str) -> None:
+def rm(my_shell: MyShell, path: RFile) -> None:
     '''Remove the file with the given path from the remote computer'''
-    my_shell.executor.execute(REMOTE, ['rm', path])
+    my_shell.executor.execute(REMOTE, ['rm', path.value()])
 
 @make_command(MyShell, 'Delete a local file', 'lrm')
-def lrm(my_shell: MyShell, path: str) -> None:
+def lrm(my_shell: MyShell, path: LFile) -> None:
     '''Remove the file with the given path from the local computer'''
-    my_shell.executor.execute(LOCAL, ['rm', path])
+    my_shell.executor.execute(LOCAL, ['rm', path.value()])
 
 @make_command(MyShell, 'Delete a remote folder', 'rmdir')
-def rmdir(my_shell: MyShell, path: str) -> None:
+def rmdir(my_shell: MyShell, path: RFolder) -> None:
     '''Remove the directory with the given path from the remote computer'''
-    my_shell.executor.execute(REMOTE, ['rm', '-r', path])
+    my_shell.executor.execute(REMOTE, ['rm', '-r', path.value()])
 
 @make_command(MyShell, 'Delete a local folder', 'lrmdir')
-def lrmdir(my_shell: MyShell, path: str) -> None:
+def lrmdir(my_shell: MyShell, path: LFolder) -> None:
     '''Remove the directory with the given path from the local computer'''
-    my_shell.executor.execute(LOCAL, ['rm', '-r', path])
+    my_shell.executor.execute(LOCAL, ['rm', '-r', path.value()])
 
 @make_command(MyShell, 'Change remote working directory', 'cd')
-def cd(my_shell: MyShell, path: str = None) -> None:
+def cd(my_shell: MyShell, path: RFolder = RFolder('')) -> None:
     '''If a path is given, the remote working directory is set to path.
 If no path is given, the remote working directory is set to the users home directory.'''
-    my_shell.executor.cd(REMOTE, path)
+    my_shell.executor.cd(REMOTE, path.value())
 
 @make_command(MyShell, 'Change local working directory', 'lcd')
-def lcd(my_shell: MyShell, path: str = None) -> None:
+def lcd(my_shell: MyShell, path: LFolder = LFolder('')) -> None:
     '''If a path is given, the local working directory is set to path.
 If no path is given, the local working directory is set to the users home directory.'''
-    my_shell.executor.cd(LOCAL, path)
+    my_shell.executor.cd(LOCAL, path.value())
 
 @make_command(MyShell, 'Download a remote file', 'download')
-def download(my_shell: MyShell, path: str) -> None:
+def download(my_shell: MyShell, path: RFile) -> None:
     '''Download the file located at path from the local computer and saves it with the same filename in the working directory on the local computer.'''
-    remote_path = path
+    remote_path = path.value()
     local_path = os.path.basename(remote_path)
     is_upload = False
     is_directory = False
     my_shell.executor.file_transfer(remote_path, local_path, is_upload, is_directory)
 
 @make_command(MyShell, 'Upload a local file', 'upload')
-def upload(my_shell: MyShell, path: str) -> None:
+def upload(my_shell: MyShell, path: LFile) -> None:
     '''Upload the file located at path from the local computer and saves it with the same filename in the working directory on the remote computer.'''
-    local_path = path
+    local_path = path.value()
     remote_path = os.path.basename(local_path)
     is_upload = True
     is_directory = False
     my_shell.executor.file_transfer(remote_path, local_path, is_upload, is_directory)
 
 @make_command(MyShell, 'Edit a remote file', 'edit')
-def edit(my_shell: MyShell, path: str) -> None:
+def edit(my_shell: MyShell, path: RFile) -> None:
     '''Edit the file located at path on the remote computer'''
-    my_shell.executor.execute(REMOTE, ['nano', path])
+    my_shell.executor.execute(REMOTE, ['nano', path.value()])
 
-@make_command(MyShell, 'List/search remote commands', 'search-command', 'sc')
+@make_command(MyShell, 'List/search remote commands', 'search_commands', 'sc')
 def sc(my_shell: MyShell, pattern: str = None) -> None:
     '''Lists all commands in the remote computers path, that match the regex.
 
@@ -127,7 +127,7 @@ Examples:
     commands = my_shell.executor.get_commands(REMOTE, pattern)
     print('\n'.join(commands))
 
-@make_command(MyShell, 'List/search local commands', 'lsearch-command', 'lsc')
+@make_command(MyShell, 'List/search local commands', 'lsearch_commands', 'lsc')
 def lsc(my_shell: MyShell, pattern: str = None) -> None:
     '''Lists all commands in the local computers path, that match the regex
 

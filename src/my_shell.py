@@ -10,6 +10,7 @@ from .ssh_utils import SshSettings
 from .my_decorators import *
 # External libraries. Might need no be installed via pip
 import termcolor
+from tabulate import tabulate
 
 
 NAME = 'Dummie{}ell'.format(termcolor.colored('SSH', 'red'))
@@ -60,10 +61,29 @@ class MyShell(cmd.Cmd):
 If command is given, a help message about the command will be shown.
 Otherwise a list of valid commands and their usage is displayed'''
         if not arg:
-            print("Available commands:")
-            # TODO update
+            commands = []
+            for member_name in dir(self):
+                if member_name.startswith('command_'):
+                    commands.append(getattr(self, member_name))
+
+            descriptions = []
+            descriptions.append(('?', 'Alias for "help"'))
+            descriptions.append(('!', 'Alias for "shell"'))
+            descriptions.append(('help', 'Shows usage for available commands'))
+            for c in set(commands):
+                name = c.names[0]
+                descriptions.append((name, c.short_description))
+                for alias_name in c.names[1:]:
+                    descriptions.append((alias_name, f'Alias for "{name}"'))
+            descriptions = sorted(descriptions)
+
+            print()
+            print(tabulate(descriptions, headers=['Command', 'Description'], tablefmt="psql"))
+            print()
         else:
-            # Work around for '??'
+            # Work around for '??' and '?!'
             if arg == '?':
                 arg = 'help'
+            elif arg == '!':
+                arg = 'shell'
             super().do_help(arg)
