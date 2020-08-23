@@ -33,13 +33,11 @@ src_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'src')
 sys.path.append(src_dir)
 # Import local package
 # pylint: disable=import-error,no-name-in-module
-from src import SshSettings, MyShell, get_available_commands, err, set_debug
+from src import SshSettings, MyShell, err, set_debug
 
-available_commands = ''.join([f'\n  {c}' for c in get_available_commands()])
 
 parser = argparse.ArgumentParser(
     description='A SSH helper that is inspired by the Metasploit Meterpreter',
-    epilog=f'available commands:' + available_commands,
     formatter_class=argparse.RawDescriptionHelpFormatter)
 parser.add_argument('user_at_host', help='<SSH username>@<hostname/IP address>')
 parser.add_argument('--password', '-p', help='SSH login password')

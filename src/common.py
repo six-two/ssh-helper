@@ -8,25 +8,6 @@ REMOTE = IsRemote(True)
 LOCAL = IsRemote(False)
 
 _DEBUG = False
-USAGE = 'Usage: '
-
-def print_usage(method: _typing.Callable) -> None:
-    usage = get_usage(method)
-    if usage:
-        print(USAGE + usage)
-    else:
-        print('Usage description not available')
-
-def get_usage(method: _typing.Callable) -> _typing.Optional[str]:
-    if method.__doc__:
-        usage = method.__doc__.split('\n')[0]
-        if usage.startswith(USAGE):
-            return usage[len(USAGE):]
-        else:
-            print(warn(f'[Warning] Bad usage format in method "{method.__name__}"'))
-    else:
-        print(warn(f'[Warning] No docstring for method "{method.__name__}"'))
-    return None
 
 def pluralize(count: int, word: str) -> str:
     plural = '' if count == 1 else 's'

@@ -15,28 +15,7 @@ import termcolor
 NAME = 'Dummie{}ell'.format(termcolor.colored('SSH', 'red'))
 HELP_TIP = 'Type "help" or "?" to list commands.'
 
-def get_available_commands(exclude_list: Sequence[str] = []) -> List[str]:
-    commands = []
-    alias_regex = re.compile(r'\((.*?) \| (.*?)\) (.*)')
-    for member_name in dir(MyShell):
-        if member_name.startswith('do_') and member_name not in exclude_list:
-            member = getattr(MyShell, member_name)
-            # Only accept functions
-            if callable(member):
-                usage = get_usage(member)
-                if usage:
-                    result = alias_regex.match(usage)
-                    if result:
-                        # TODO handle duplicates and aliases
-                        name, alias, arguments = result.groups()
-                        commands += [f'{name} {arguments}', f'{alias} {arguments}']
-                    else:
-                        commands.append(usage)
 
-    return sorted(commands)
-
-
-@decorate_all_methods_starting_with(print_exceptions, ['do_', 'complete_', 'help_'])
 class MyShell(cmd.Cmd):
     intro = f'Welcome to the {NAME}. {HELP_TIP}\n'
 
@@ -45,21 +24,9 @@ class MyShell(cmd.Cmd):
         self.executor = Executor(ssh_settings)
         self.prompt = '(You should not see this message)'
 
-        # def signal_handler(sig, frame):
-        #     print('You pressed Ctrl+C!')
-            
-        # signal.signal(signal.SIGINT, signal_handler)
-
-
     def preloop(self) -> None:
         self.executor.initialize()
         self.update_prompt()
-
-    def complete_path_single_argument(self, remote: IsRemote, allow_files: bool, text: str, line: str, begidx: int, endidx: int) -> List[str]:
-        line_before_cursor = line[:endidx]
-        command, argument_before_cursor = line_before_cursor.split(' ', 1)
-        print_debug(f'Single arg complete for "{command}"')
-        return self.executor.complete_path(remote, allow_files, argument_before_cursor, text)
 
     def precmd(self, line: str) -> str:
         # try to replace 'l!' with 'lshell'
@@ -87,204 +54,16 @@ class MyShell(cmd.Cmd):
         print(HELP_TIP)
         return False
 
-    # No decorator, so that we can pass the raw string through
-    def do_shell(self, arg: str) -> None:
-        '''Usage: (shell | !) [unix_command...]
-If called without arguments, it will open a new interactive ssh session with the remote computer.
-If called with a unix_command, it will run the unix_command on the remote machine
-
-Example:
- - "!uname -a" will run "uname -a" on the remote computer'''
-        self.executor.shell(REMOTE, arg)
-
-    # No decorator, so that we can pass the raw string through
-    def do_lshell(self, arg: str) -> None:
-        '''Usage: (lshell | l!) [unix_command]
-If called without arguments, it will open a new interactive shell on the local computer.
-If called with a unix_command, it will run the unix_command on the local machine'''
-        self.executor.shell(LOCAL, arg)
-
-    @arg_count(0, 1)
-    def do_help(self, arg: str = None) -> None:
+    def do_help(self, arg: str) -> None:
         '''Usage: (help | ?) [command]
+
 If command is given, a help message about the command will be shown.
 Otherwise a list of valid commands and their usage is displayed'''
         if not arg:
             print("Available commands:")
-            for command in get_available_commands(exclude_list=['do_EOF']):
-                print(f'  {command}')
+            # TODO update
         else:
             # Work around for '??'
             if arg == '?':
                 arg = 'help'
             super().do_help(arg)
-
-# ======================= (l)ls =======================
-    @arg_count(0, 1)
-    def do_ls(self, path: str = None) -> None:
-        '''Usage: ls [path]
-List the files in the current directory or in the given path on the remote computer'''
-        self.executor.ls(REMOTE, path)
-
-    def complete_ls(self, *args) -> List[str]:
-        return self.complete_path_single_argument(REMOTE, True, *args)
-
-    @arg_count(0, 1)
-    def do_lls(self, path: str = None) -> None:
-        '''Usage: lls [path]
-List the files in the current directory or in the given path on the local computer'''
-        self.executor.ls(LOCAL, path)
-
-    def complete_lls(self, *args) -> List[str]:
-        return self.complete_path_single_argument(LOCAL, True, *args)
-
-# ======================= (l)pwd =======================
-    @arg_count(0)
-    def do_pwd(self) -> None:
-        '''Usage: pwd
-Show the full path of your current working directory on the remote computer'''
-        self.executor.execute(REMOTE, ['pwd'])
-
-    @arg_count(0)
-    def do_lpwd(self) -> None:
-        '''Usage: lpwd
-Show the full path of your current working directory on the local computer'''
-        self.executor.execute(LOCAL, 'pwd')
-
-# ======================= (l)rm =======================
-    @arg_count(1)
-    def do_rm(self, path: str) -> None:
-        '''Usage: rm <path>
-Remove the file with the given path from the remote computer'''
-        self.executor.execute(REMOTE, ['rm', path])
-
-    def complete_rm(self, *args) -> List[str]:
-        return self.complete_path_single_argument(REMOTE, True, *args)
-
-    @arg_count(1)
-    def do_lrm(self, path: str) -> None:
-        '''Usage: lrm <path>
-Remove the file with the given path from the local computer'''
-        self.executor.execute(LOCAL, ['rm', path])
-
-    def complete_lrm(self, *args) -> List[str]:
-        return self.complete_path_single_argument(LOCAL, True, *args)
-
-# ======================= (l)rmdir =======================
-    @arg_count(1)
-    def do_rmdir(self, path: str) -> None:
-        '''Usage: rmdir <path>
-Remove the directory with the given path from the remote computer'''
-        self.executor.execute(REMOTE, ['rm', '-r', path])
-
-    def complete_rmdir(self, *args) -> List[str]:
-        return self.complete_path_single_argument(REMOTE, True, *args)
-
-    @arg_count(1)
-    def do_lrmdir(self, path: str) -> None:
-        '''Usage: lrmdir <path>
-Remove the directory with the given path from the local computer'''
-        self.executor.execute(LOCAL, ['rm', '-r', path])
-
-    def complete_lrmdir(self, *args) -> List[str]:
-        return self.complete_path_single_argument(LOCAL, True, *args)
-
-
-# ======================= (l)cd =======================
-    @arg_count(0, 1)
-    def do_cd(self, path: str = None) -> None:
-        '''Usage: cd [path]
-If a path is given, the remote working directory is set to path.
-If no path is given, the remote working directory is set to the users home directory.'''
-        self.executor.cd(REMOTE, path)
-
-    def complete_cd(self, *args) -> List[str]:
-        return self.complete_path_single_argument(REMOTE, False, *args)
-
-    @arg_count(0, 1)
-    def do_lcd(self, path: str = None) -> None:
-        '''Usage: lcd [path]
-If a path is given, the local working directory is set to path.
-If no path is given, the local working directory is set to the users home directory.'''
-        self.executor.cd(LOCAL, path)
-
-    def complete_lcd(self, *args) -> List[str]:
-        return self.complete_path_single_argument(LOCAL, False, *args)
-
-# ======================= download =======================
-    @arg_count(1)
-    def do_download(self, path: str) -> None:
-        '''Usage: download <path>
-Download the file located at path from the local computer and saves it with the same filename in the working directory on the local computer.'''
-        remote_path = path
-        local_path = os.path.basename(remote_path)
-        is_upload = False
-        is_directory = False
-        self.executor.file_transfer(remote_path, local_path, is_upload, is_directory)
-
-    def complete_download(self, *args) -> List[str]:
-        return self.complete_path_single_argument(REMOTE, True, *args)
-
-# ======================= upload =======================
-    @arg_count(1)
-    def do_upload(self, path: str) -> None:
-        '''Usage: upload <path>
-Upload the file located at path from the local computer and saves it with the same filename in the working directory on the remote computer.'''
-        local_path = path
-        remote_path = os.path.basename(local_path)
-        is_upload = True
-        is_directory = False
-        self.executor.file_transfer(remote_path, local_path, is_upload, is_directory)
-
-    def complete_upload(self, *args) -> List[str]:
-        return self.complete_path_single_argument(LOCAL, True, *args)
-
-# ======================= edit =======================
-    @arg_count(1)
-    def do_edit(self, path: str) -> None:
-        '''Usage: edit <path>
-Edit the file located at path on the remote computer'''
-        self.executor.execute(REMOTE, ['nano', path])
-
-    def complete_edit(self, *args) -> List[str]:
-        return self.complete_path_single_argument(LOCAL, True, *args)
-
-# ======================= edit =======================
-    @arg_count(0, 1)
-    def do_sc(self, pattern: str = None) -> None:
-        '''Usage: sc [regex]
-Lists all commands in the remote computers path, that match the regex.
-
-Examples: 
- - "sc ^php" will find all commands that start with "php"
- - "sc admin" will find any commands that contain the word "admin"'''
-        commands = self.executor.get_commands(REMOTE, pattern)
-        print('\n'.join(commands))
-
-    @arg_count(0, 1)
-    def do_lsc(self, pattern: str = None) -> None:
-        '''Usage: llscmd [regex]
-Lists all commands in the local computers path, that match the regex
-
-Examples: 
- - "sc ^php" will find all commands that start with "php"
- - "sc admin" will find any commands that contain the word "admin"'''
-        commands = self.executor.get_commands(LOCAL, pattern)
-        print('\n'.join(commands))
-
-# ===============
-    def do_test(self, line):
-        '''Hello world
-
-This text is multi-
-line!'''
-        print_debug('Debug is enabled\n')
-        import inspect
-        for member_name in sorted(dir(self)):
-            member = getattr(self, member_name)
-            if callable(member) and not member_name.startswith('__'):
-                print(member_name, end='')
-                try:
-                    print(inspect.signature(member))
-                except:
-                    print(' <-- Could not determine signature')
