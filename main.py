@@ -43,7 +43,7 @@ from src import SshSettings, MyShell, err, set_debug
 parser = argparse.ArgumentParser(
     description='A SSH helper that is inspired by the Metasploit Meterpreter',
     formatter_class=argparse.RawDescriptionHelpFormatter)
-parser.add_argument('user_at_host', help='<SSH username>@<hostname/IP address>')
+parser.add_argument('user_at_host', nargs='?', help='<SSH username>@<hostname/IP address>')
 parser.add_argument('--password', '-p', help='SSH login password')
 parser.add_argument('--command', '-c', nargs='+', help='run command and exit')
 parser.add_argument('--debug', '-d', action='store_true', help='start with debug enabled')
@@ -53,15 +53,17 @@ if args.debug:
     print('debug on')
     set_debug(True)
 
-try:
-    user, host = args.user_at_host.split('@')
-except:
-    print(err(f'Invalid format: "{args.user_at_host}"'))
-    print('Expected format: "<SSH username>@<hostname/IP address>"')
-    print('Examples: "admin@ssh.six-two.dev", "vagrant@172.28.128.3"')
-    sys.exit(1)
+ssh_settings = None
+if args.user_at_host:
+    try:
+        user, host = args.user_at_host.split('@')
+        ssh_settings = SshSettings(host, user, args.password)
+    except:
+        print(err(f'Invalid format: "{args.user_at_host}"'))
+        print('Expected format: "<SSH username>@<hostname/IP address>"')
+        print('Examples: "admin@ssh.six-two.dev", "vagrant@172.28.128.3"')
+        sys.exit(1)
 
-ssh_settings = SshSettings(host, user, args.password)
 shell = MyShell(ssh_settings)
 
 try:

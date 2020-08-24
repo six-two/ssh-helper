@@ -170,6 +170,10 @@ line!'''
             except:
                 print(' <-- Could not determine signature')
 
+@make_command(MyShell, 'Echos the path to a remote file', 'echo_rfile')
+def echo_rfile(my_shell: MyShell, path: RFile):
+    print(f'Path: "{path.value()}"')
+
 @make_command(MyShell, 'Execute a remote file', 'run')
 def run(my_shell: MyShell, path: RFile) -> None:
     '''Mark the given file as executeable and then execute it'''

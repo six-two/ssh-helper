@@ -39,7 +39,7 @@ def print_usage_table(cls) -> None:
 class MyShell(cmd.Cmd):
     intro = f'Welcome to the {NAME}. {HELP_TIP}\n'
 
-    def __init__(self, ssh_settings: SshSettings) -> None:
+    def __init__(self, ssh_settings: Optional[SshSettings]) -> None:
         super().__init__()
         self.executor = Executor(ssh_settings)
         self.prompt = '(You should not see this message)'
@@ -63,9 +63,14 @@ class MyShell(cmd.Cmd):
 
     def update_prompt(self) -> None:
         if self.executor.remote_path:
-            remote_dirname = os.path.basename(self.executor.remote_path)
-            prompt = f'({remote_dirname}) '
-            self.prompt = termcolor.colored(prompt, 'blue')
+            dirname = os.path.basename(self.executor.remote_path)
+            prompt = f'(remote: {dirname}) '
+        elif self.executor.local_path:
+            dirname = os.path.basename(self.executor.local_path)
+            prompt = f'(local: {dirname}) '
+        else:
+            prompt = '(Error: no path defined) '
+        self.prompt = termcolor.colored(prompt, 'blue')
 
     def default(self, line: str) -> bool:
         '''Executed if the user input matches no defined command'''

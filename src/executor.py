@@ -15,6 +15,10 @@ class CommandExecutionFailed(Exception):
         super().__init__(f'Command exited with non-zero status code ({returncode}):\n  "{shlex.join(command)}"')
 
 
+class NoRemoteException(Exception):
+    pass
+
+
 def execute_in_background(command: Sequence[str], cwd: Optional[str]) -> str:
     result = subprocess.run(command, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     try:
@@ -36,8 +40,10 @@ def execute_in_foreground(command: Sequence[str], cwd: Optional[str]) -> None:
 
 
 class Executor:
-    def __init__(self, ssh_settings: SshSettings):
-        self.ssh_helper = SshCommandBuilder(ssh_settings)
+    def __init__(self, ssh_settings: Optional[SshSettings]):
+        '''If ssh_settings is None, it will not open a remote connection.
+Useful for testing, since you don't need to set up a ssh server'''
+        self.ssh_helper = SshCommandBuilder(ssh_settings) if ssh_settings else None
         self.default_local_path: Optional[str] = None
         self.default_remote_path: Optional[str] = None
         self.local_path: Optional[str] = None
@@ -46,21 +52,25 @@ class Executor:
     def initialize(self):
         if not self.local_path:
             # Only run once
-            print(f'Trying to login as "{self.ssh_helper.user_at_host}"...')
-            try:
-                self.execute(REMOTE, ['echo', 'Login successful'])
-            except CommandExecutionFailed:
-                print('\nFailed to login via ssh. See above error message for details')
-                sys.exit(1)
-
             self.default_local_path = self.execute_in_background(LOCAL, ['pwd']).strip()
-            self.default_remote_path = self.execute_in_background(REMOTE, ['pwd']).strip()
-
             self.local_path = self.default_local_path
-            self.remote_path = self.default_remote_path
+
+            if self.ssh_helper:
+                print(f'Trying to login as "{self.ssh_helper.user_at_host}"...')
+                try:
+                    self.execute(REMOTE, ['echo', 'Login successful'])
+                except CommandExecutionFailed:
+                    print('\nFailed to login via ssh. See above error message for details')
+                    sys.exit(1)
+
+                self.default_remote_path = self.execute_in_background(REMOTE, ['pwd']).strip()
+                self.remote_path = self.default_remote_path
 
     def _prepare_command(self, is_remote: IsRemote, command: Sequence[str], ssh_options: Optional[Sequence[str]], shell: bool) -> Sequence[str]:
         if is_remote:
+            if self.ssh_helper is None:
+                raise NoRemoteException()
+
             if self.remote_path:
                 command = ['cd', self.remote_path, ';', *command]
             if ssh_options is None:
@@ -98,6 +108,8 @@ class Executor:
             return matches
         except CommandExecutionFailed as ex:
             print_debug(ex)
+            return []
+        except NoRemoteException:
             return []
         except Exception as ex:
             # TODO log these in a file somewhere?
@@ -154,17 +166,14 @@ class Executor:
         try:
             self.execute(is_remote, ['bash', '-c', f'cd \'{new_cwd}\''])
             if is_remote:
+                if not self.ssh_helper:
+                    raise NoRemoteException()
+
                 self.remote_path = new_cwd
             else:
                 self.local_path = new_cwd
         except CommandExecutionFailed:
             print(err('Not a valid directory or permission denied'))
-
-    # def get_vars(self, remote: IsRemote, variable_names) -> Dict[str, str]:
-    #     output = self.execute_in_background(remote, ['printenv', variable_names], shell=True)
-    #     values = output.split('\n')
-    #     for name, value in zip(variable_names, values):
-    #         pass
 
     def all_commands(self, remote: IsRemote) -> List[str]:
         path = self.execute_in_background(remote, ['printenv', 'PATH'])
@@ -175,5 +184,8 @@ class Executor:
         return sorted(set(commands))
 
     def file_transfer(self, src: str, dst: str, is_upload: bool, is_directory: bool) -> None:
+        if not self.ssh_helper:
+            raise NoRemoteException()
+
         command = self.ssh_helper.make_scp_command(src, dst, is_upload, is_directory)
         self.execute(LOCAL, command)

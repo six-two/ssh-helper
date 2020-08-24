@@ -4,7 +4,7 @@ import traceback
 from typing import Optional, Callable, Any, List, Sequence
 # Local modules
 from .common import *
-from .executor import CommandExecutionFailed
+from .executor import CommandExecutionFailed, NoRemoteException
 
 def make_box_message(title: str, message: str, line_length=80) -> str:
     header = f' {title} '.center(line_length, '=')
@@ -19,6 +19,8 @@ def print_exceptions(fn: Callable) -> Callable:
             return fn(*args, **kwargs)
         except CommandExecutionFailed as ex:
             print(err(make_box_message('Command failed', str(ex))))
+        except NoRemoteException:
+            print(err('You have not configured a remote server!'))
         except Exception:
             print(err(make_box_message('Internal error', traceback.format_exc())))
     return wrapper_print_exceptions
