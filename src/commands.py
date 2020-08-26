@@ -61,12 +61,18 @@ You can trigger this by pressing Ctrl-D on an empty prompt.'''
 @make_command(MyShell, 'List remote files', 'ls')
 def ls(my_shell: MyShell, path: RFile = RFile('.')) -> None:
     '''List the files in the current directory or in the given path on the remote computer'''
-    my_shell.executor.ls(REMOTE, path.value())
+    my_shell.executor.ls(REMOTE, '', path.value())
 
 @make_command(MyShell, 'List local files', 'lls')
 def lls(my_shell: MyShell, path: LFile = LFile('.')) -> None:
     '''List the files in the current directory or in the given path on the local computer'''
-    my_shell.executor.ls(LOCAL, path.value())
+    my_shell.executor.ls(LOCAL, '', path.value())
+
+@make_command(MyShell, 'List local files', 'llsf')
+def llsf(my_shell: MyShell, flags: str, path: LFile = LFile('.')) -> None:
+    '''List the files in the current directory or in the given path on the local computer'''
+    my_shell.executor.ls(LOCAL, flags, path.value())
+
 
 @make_command(MyShell, 'Print remote working directory', 'pwd')
 def pwd(my_shell: MyShell) -> None:

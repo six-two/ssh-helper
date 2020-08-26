@@ -1,7 +1,7 @@
 # pylint: disable=unused-wildcard-import
 import cmd
 import os
-from typing import List, Sequence
+from typing import List, Sequence, Optional
 import re
 # Local modules
 from .common import *

@@ -10,7 +10,6 @@ import traceback
 #local
 from .common import *
 from .my_decorators import print_exceptions
-from .complete import UsageException
 from .arguments import param_to_help_text, arg_counts, split_args, split_incomplete_args, parse_args
 
 
