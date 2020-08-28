@@ -17,23 +17,25 @@ NAME = 'Dummie{}ell'.format(termcolor.colored('SSH', 'red'))
 HELP_TIP = 'Type "help" or "?" to list commands.'
 
 def print_usage_table(cls) -> None:
-    commands = []
+    info_map = {}
     for member_name in dir(cls):
         if member_name.startswith('command_'):
-            commands.append(getattr(cls, member_name))
+            command = getattr(cls, member_name)
+            name = command.names[0]
+            aliases = command.names[1:]
+            info_map[name] = (aliases, command.short_description)
+
+    info_map['help'] = (['?'], 'Shows help about commands')
+    info_map['shell'][0].append('!')
 
     descriptions = []
-    descriptions.append(('?', 'Alias for "help"'))
-    descriptions.append(('!', 'Alias for "shell"'))
-    descriptions.append(('help', 'Shows usage for available commands'))
-    for c in set(commands):
-        name = c.names[0]
-        descriptions.append((name, c.short_description))
-        for alias_name in c.names[1:]:
-            descriptions.append((alias_name, f'Alias for "{name}"'))
-    descriptions = sorted(descriptions)
+    descriptions.append(('Command', 'Alias(es)', 'Description'))
+    for name, aliases_description in sorted(info_map.items()):
+        aliases, description = aliases_description
+        alias_str = ', '.join(aliases)
+        descriptions.append((name, alias_str, description))
 
-    table = tabulate(descriptions, headers=['Command', 'Description'], tablefmt="psql")
+    table = tabulate(descriptions, headers='firstrow', tablefmt="psql")
     print(f'\n{table}\n')
 
 def _rewrite_command(line: str, source_command_start: str, target_command: str, do_not_rewrite_list: Sequence[str] = []) -> str:

@@ -45,7 +45,7 @@ def make_command(cls, short_description: str, *aliases: str, name: Optional[str]
         _name = name if name else fn.__name__
         if _name in aliases:
             print(f'Warning: Command name "{_name}" is also in its alias list')
-            names = aliases
+            names = list(aliases)
         else:
             names = [_name, *aliases]
         Command(fn, names, short_description, raw_arg=raw_arg).apply_to(cls)
