@@ -1,34 +1,29 @@
 #!/usr/bin/env python3
 
 '''
-TODO:
+============== TODO ============================
 add typing annotations everywhere
 handle args: support primitives like str, int, bool, float
  - abstract complete folder
  - make it into reuseable separate package
+file name argument parsing with special cases (TODO: test)
+creating shortcuts (like R1, L4)
 
-Commands:
+=============== Commands to add ================
 mv, cp?
-edit, view
+view
 sysinfo
 resource
 pgrep, pkill
 (upload|download)_dir
 
-file name argument parsing with special cases (TODO: test)
-creating shortcuts (like R1, L4)
-
-================ nice to have(s) =================
+=============== nice to have(s) ================
 Use libssh to prevent having to log in again for every command.
 Having a ssh login every second might look very suspicious and has a bit of overhead
-'''
 
-'''
 =============== Known Issues ===================
 Remote commands using 'curses' (top, nano) do not work
-'''
 
-'''
 =============== Command reminder ===============
 Run (local only): /c/ssh-helper/main.py
 Run with VM: /c/ssh-helper/main.py vagrant@172.28.128.3 -p vagrant

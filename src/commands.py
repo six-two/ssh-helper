@@ -5,6 +5,7 @@ from typing import List, Optional
 # Local
 from .common import *
 from .my_shell import MyShell
+from .executor import NoRemoteException
 from .command_builder import *
 from .complete import *
 from .my_decorators import make_command
@@ -73,16 +74,18 @@ def lls_format(my_shell: MyShell, flags: str, path: LFile = LFile('.')) -> None:
     '''List the files in the current directory or in the given path on the local computer'''
     my_shell.executor.ls(LOCAL, flags, path.value())
 
-
-@make_command(MyShell, 'Print remote working directory')
+@make_command(MyShell, 'Print current working directories')
 def pwd(my_shell: MyShell) -> None:
-    '''Show the full path of your current working directory on the remote computer'''
-    my_shell.executor.execute(REMOTE, ['pwd'])
+    '''Show the full path of your current working directories'''
+    # Remove trailing \n
+    lpwd = my_shell.executor.execute_in_background(LOCAL, ['pwd'])[:-1]
+    print(f'Local working directory:  "{lpwd}"')
 
-@make_command(MyShell, 'Print local working directory')
-def lpwd(my_shell: MyShell) -> None:
-    '''Show the full path of your current working directory on the local computer'''
-    my_shell.executor.execute(LOCAL, 'pwd')
+    try:
+        rpwd = my_shell.executor.execute_in_background(REMOTE, ['pwd'])[:-1]
+        print(f'Remote working directory: "{rpwd}"')
+    except NoRemoteException:
+        print('Remote working directory:', warn('<Remote is disabled>'))
 
 @make_command(MyShell, 'Delete a remote file')
 def rm(my_shell: MyShell, path: RFile) -> None:
@@ -140,9 +143,21 @@ def edit(my_shell: MyShell, path: RFile) -> None:
     my_shell.executor.execute(REMOTE, ['nano', path.value()])
 
 @make_command(MyShell, 'Edit a local file', 'le')
-def ledit(my_shell: MyShell, path: RFile) -> None:
+def ledit(my_shell: MyShell, path: LFile) -> None:
     '''Edit the file located at path on the remote computer'''
     my_shell.executor.execute(LOCAL, ['nano', path.value()])
+
+@make_command(MyShell, 'View a remote file', 'v')
+def view(my_shell: MyShell, path: RFile) -> None:
+    '''View the file located at path on the remote computer'''
+    # TODO automatic detection of available commands: less, more, cat
+    my_shell.executor.execute(REMOTE, ['less', path.value()])
+
+@make_command(MyShell, 'View a local file', 'lv')
+def lview(my_shell: MyShell, path: LFile) -> None:
+    '''View the file located at path on the local computer'''
+    # TODO automatic detection of available commands: less, more, cat
+    my_shell.executor.execute(LOCAL, ['less', path.value()])
 
 @make_command(MyShell, 'List/search remote commands', 'sc')
 def search_commands(my_shell: MyShell, pattern: str = None) -> None:
