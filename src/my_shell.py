@@ -36,6 +36,20 @@ def print_usage_table(cls) -> None:
     table = tabulate(descriptions, headers=['Command', 'Description'], tablefmt="psql")
     print(f'\n{table}\n')
 
+def _rewrite_command(line: str, source_command_start: str, target_command: str, do_not_rewrite_list: Sequence[str] = []) -> str:
+    command = line.split()[0]
+    do_not_rewrite_list = [target_command, *do_not_rewrite_list]
+
+    if command.startswith(source_command_start):
+        command_end = command[len(source_command_start):]
+        if command_end and command not in do_not_rewrite_list:
+            # Make everything following base the first parameter
+            rewritten_command = f'{target_command} {command_end}'
+            new_line = line.replace(command, rewritten_command, 1)
+            print_debug(f'Rewritten "{line}" to "{new_line}"')
+            return new_line
+    return line
+
 class MyShell(cmd.Cmd):
     intro = f'Welcome to the {NAME}. {HELP_TIP}\n'
 
@@ -49,11 +63,8 @@ class MyShell(cmd.Cmd):
         self.update_prompt()
 
     def precmd(self, line: str) -> str:
-        # try to replace 'l!' with 'lshell'
-        l = line.lstrip()
-        if l.startswith("l!"):
-            line = f'lshell {l[2:]}'
-
+        line = _rewrite_command(line, 'ls', 'ls_format')
+        line = _rewrite_command(line, 'lls', 'lls_format')
         return line
 
     def postcmd(self, stop: bool, line: str) -> bool:

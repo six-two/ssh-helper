@@ -15,7 +15,7 @@ resource
 pgrep, pkill
 (upload|download)_dir
 
-file name argument parsing with special cases
+file name argument parsing with special cases (TODO: test)
 creating shortcuts (like R1, L4)
 
 ================ nice to have(s) =================
@@ -24,8 +24,14 @@ Having a ssh login every second might look very suspicious and has a bit of over
 '''
 
 '''
+=============== Known Issues ===================
+Remote commands using 'curses' (top, nano) do not work
+'''
+
+'''
 =============== Command reminder ===============
-Run: /c/ssh-helper/main.py vagrant@172.28.128.3 -p vagrant
+Run (local only): /c/ssh-helper/main.py
+Run with VM: /c/ssh-helper/main.py vagrant@172.28.128.3 -p vagrant
 Run typechecker: mypy /c/ssh-helper/
 '''
 

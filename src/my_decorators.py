@@ -39,10 +39,15 @@ def decorate_all_methods_starting_with(decorator: Callable[[Callable], Callable]
 # Put here to prevent a circular import error
 from .command_builder import Command
 
-def make_command(cls, short_description: str, name: str, *aliases: str, raw_arg: bool = False) -> Callable:
+def make_command(cls, short_description: str, *aliases: str, name: Optional[str] = None, raw_arg: bool = False) -> Callable:
     '''This decorator does not actually modify the function, it just adds it to the given "cls".'''
     def decorator_make_command(fn: Callable) -> Callable:
-        names = [name, *aliases]
+        _name = name if name else fn.__name__
+        if _name in aliases:
+            print(f'Warning: Command name "{_name}" is also in its alias list')
+            names = aliases
+        else:
+            names = [_name, *aliases]
         Command(fn, names, short_description, raw_arg=raw_arg).apply_to(cls)
         return fn
     return decorator_make_command
