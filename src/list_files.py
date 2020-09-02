@@ -146,4 +146,3 @@ def print_ls(files: Sequence[LsFileInfo], filters: str, sort_by: str, columns: s
         # line = f'{shortcut} {line}'
 
         # print(line)
-

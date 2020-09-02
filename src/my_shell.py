@@ -17,12 +17,10 @@ HELP_TIP = 'Type "help" or "?" to list commands.'
 
 def print_usage_table(cls) -> None:
     info_map = {}
-    for member_name in dir(cls):
-        if member_name.startswith('command_'):
-            command = getattr(cls, member_name)
-            name = command.names[0]
-            aliases = command.names[1:]
-            info_map[name] = (aliases, command.short_description)
+    for command in get_settings().registered_commands:
+        name = command.names[0]
+        aliases = command.names[1:]
+        info_map[name] = (aliases, command.short_description)
 
     info_map['help'] = (['?'], 'Shows help about commands')
     info_map['shell'][0].append('!')

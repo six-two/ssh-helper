@@ -2,12 +2,24 @@
 import typing as _typing
 # External libraries. Might need no be installed via pip
 import termcolor as _termcolor
+from py_derive_cmd import make_command, Settings
+
 
 IsRemote = _typing.NewType('IsRemote', bool)
 REMOTE = IsRemote(True)
 LOCAL = IsRemote(False)
 
 _DEBUG = False
+_settings: _typing.Optional[Settings] = None
+
+def get_settings() -> Settings:
+    global _settings
+
+    if _settings is None:
+        from .my_shell import MyShell
+        _settings = Settings(MyShell)
+
+    return _settings
 
 def err(message: str):
     '''Creates a colored string to be printed. It uses the standard error color'''

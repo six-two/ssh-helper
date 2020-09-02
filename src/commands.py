@@ -2,8 +2,6 @@
 import os
 import re
 from typing import List, Optional
-# External library
-from py_derive_cmd import make_command, Settings
 # Local
 from .common import *
 from .my_shell import MyShell
@@ -11,7 +9,7 @@ from .executor import NoRemoteException
 from .complete import *
 
 
-settings = Settings(MyShell)
+settings = get_settings()
 
 def print_matching(lines: List[str], regex: Optional[str], fn_line_key: Callable[[str], str] = None) -> None:
     '''Basically this does what "grep" does'''
@@ -65,6 +63,11 @@ You can trigger this by pressing Ctrl-D on an empty prompt.'''
 def ls(my_shell: MyShell, path: RFile = RFile('.')) -> None:
     '''List the files in the current directory or in the given path on the remote computer'''
     my_shell.executor.ls(REMOTE, '', path.value())
+
+@make_command(settings, 'List remote files')
+def ls_format(my_shell: MyShell, flags: str, path: RFile = RFile('.')) -> None:
+    '''List the files in the current directory or in the given path on the remote computer'''
+    my_shell.executor.ls(REMOTE, flags, path.value())
 
 @make_command(settings, 'List local files')
 def lls(my_shell: MyShell, path: LFile = LFile('.')) -> None:
