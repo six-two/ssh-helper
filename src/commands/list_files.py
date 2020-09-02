@@ -3,9 +3,7 @@ import traceback
 import shlex
 from typing import List, Sequence
 # Local modules
-from ..common import *
-from ..my_shell import MyShell
-from ..complete import LFile, RFile
+from . import *
 # External libs
 from tabulate import tabulate
 

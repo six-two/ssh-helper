@@ -17,7 +17,8 @@ def get_settings() -> Settings:
 
     if _settings is None:
         from .my_shell import MyShell
-        _settings = Settings(MyShell)
+        from .settings_overwrite import MySettings
+        _settings = MySettings(MyShell)
 
     return _settings
 

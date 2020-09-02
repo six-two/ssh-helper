@@ -1,15 +1,10 @@
 # pylint: disable=unused-wildcard-import
 import os
 import re
-from typing import List, Optional
+from typing import List, Optional, Callable
 # Local
-from ..common import *
-from ..my_shell import MyShell
-from ..executor import NoRemoteException
-from ..complete import *
+from . import *
 
-
-settings = get_settings()
 
 def print_matching(lines: List[str], regex: Optional[str], fn_line_key: Callable[[str], str] = None) -> None:
     '''Basically this does what "grep" does'''
@@ -42,35 +37,11 @@ def lshell(my_shell: MyShell, arg: str) -> None:
 If called with arguments, it will run the arguments in a shell on the local machine'''
     my_shell.executor.shell(LOCAL, arg)
 
-@make_command(settings, 'Enable/disable debugging')
-def debug(my_shell: MyShell, enable: BoolOption) -> None:
-    '''Enables / disables debugging output. This may interfere with some features like command completion'''
-    set_debug(enable.value())
-    print(f'Debug enabled: {enable.value()}')
-
-@make_command(settings, 'Cause an error')
-def error(my_shell: MyShell) -> None:
-    '''Causes an internal error. Used to test exception handling'''
-    raise Exception('Test exception')
-
 @make_command(settings, 'Exit this shell', aliases=['quit', 'EOF'])
 def exit(my_shell: MyShell) -> bool:
     '''Exit this interactive shell.
 You can trigger this by pressing Ctrl-D on an empty prompt.'''
     return True
-
-@make_command(settings, 'Print current working directories')
-def pwd(my_shell: MyShell) -> None:
-    '''Show the full path of your current working directories'''
-    # Remove trailing \n
-    lpwd = my_shell.executor.execute_in_background(LOCAL, ['pwd'])[:-1]
-    print(f'Local working directory:  "{lpwd}"')
-
-    try:
-        rpwd = my_shell.executor.execute_in_background(REMOTE, ['pwd'])[:-1]
-        print(f'Remote working directory: "{rpwd}"')
-    except NoRemoteException:
-        print('Remote working directory:', warn('<Remote is disabled>'))
 
 @make_command(settings, 'Delete a remote file')
 def rm(my_shell: MyShell, path: RFile) -> None:
@@ -91,18 +62,6 @@ def rmdir(my_shell: MyShell, path: RFolder) -> None:
 def lrmdir(my_shell: MyShell, path: LFolder) -> None:
     '''Remove the directory with the given path from the local computer'''
     my_shell.executor.execute(LOCAL, ['rm', '-r', path.value()])
-
-@make_command(settings, 'Change remote working directory')
-def cd(my_shell: MyShell, path: RFolder = RFolder('')) -> None:
-    '''If a path is given, the remote working directory is set to path.
-If no path is given, the remote working directory is set to the users home directory.'''
-    my_shell.executor.cd(REMOTE, path.value())
-
-@make_command(settings, 'Change local working directory')
-def lcd(my_shell: MyShell, path: LFolder = LFolder('')) -> None:
-    '''If a path is given, the local working directory is set to path.
-If no path is given, the local working directory is set to the users home directory.'''
-    my_shell.executor.cd(LOCAL, path.value())
 
 @make_command(settings, 'Edit a remote file', aliases=['e'])
 def edit(my_shell: MyShell, path: RFile) -> None:
@@ -145,27 +104,6 @@ Examples:
 - "sc admin" will find any commands that contain the word "admin"'''
     commands = my_shell.executor.all_commands(REMOTE)
     print_matching(commands, pattern)
-
-@make_command(settings, 'test 123')
-def test(my_shell: MyShell) -> None:
-    '''Hello world
-
-This text is multi-
-line!'''
-    print_debug('Debug is enabled\n')
-    import inspect
-    for member_name in sorted(dir(my_shell)):
-        member = getattr(my_shell, member_name)
-        if callable(member) and not member_name.startswith('__'):
-            print(member_name, end='')
-            try:
-                print(inspect.signature(member))
-            except:
-                print(' <-- Could not determine signature')
-
-@make_command(settings, 'Echos the path to a remote file')
-def echo_rfile(my_shell: MyShell, path: RFile):
-    print(f'Path: "{path.value()}"')
 
 @make_command(settings, 'Execute a remote file')
 def run(my_shell: MyShell, path: RFile) -> None:
