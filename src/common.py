@@ -9,10 +9,6 @@ LOCAL = IsRemote(False)
 
 _DEBUG = False
 
-def pluralize(count: int, word: str) -> str:
-    plural = '' if count == 1 else 's'
-    return f'{count} {word}{plural}'
-
 def err(message: str):
     '''Creates a colored string to be printed. It uses the standard error color'''
     return _termcolor.colored(message, "red")

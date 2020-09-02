@@ -68,18 +68,6 @@ class LsFileInfo:
         host_specifier = '' if remote else 'l'
         return f'${host_specifier}{index}'
 
-'''
-Idea: different commands give different outputs:
-lsp (permission and ownership)
-lsc/lst (sort by date changed)
-lsl (all info)
-lss (sort by size)
-lsd (only dirs)
-lsf (only files)
-
-Idea: use rewrite lsds -> ls d s / ls ds
-'''
-
 def list_files(executor, is_remote: IsRemote, path: str = None) -> List[LsFileInfo]:
     command = ['ls', '-Alb', '--time-style=long-iso', '--indicator-style=slash']
     if path:

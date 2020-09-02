@@ -21,8 +21,9 @@ sudo pacman -S --needed python python-pip ssh scp sshpass
 ## Installation
 
 ```
+python -m pip install git+https://github.com/six-two/py_derive_cmd
 git clone https://github.com/six-two/ssh-helper
 cd ssh-helper
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 ```
 
