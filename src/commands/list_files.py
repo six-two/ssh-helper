@@ -3,7 +3,9 @@ import traceback
 import shlex
 from typing import List, Sequence
 # Local modules
-from .common import *
+from ..common import *
+from ..my_shell import MyShell
+from ..complete import LFile, RFile
 # External libs
 from tabulate import tabulate
 
@@ -146,3 +148,56 @@ def print_ls(files: Sequence[LsFileInfo], filters: str, sort_by: str, columns: s
         # line = f'{shortcut} {line}'
 
         # print(line)
+
+
+def _internal_ls_formated(my_shell: MyShell, is_remote: IsRemote, flags: str, path: str):
+    format_flag = ''
+    filters = ''
+    sort_by = ''
+    for flag in flags:
+        if flag == 'l':
+            if format_flag:
+                print(warn(f'Ignored format flag "{flag}", because the format is already set to "{format_flag}"'))
+            else:
+                format_flag = flag
+        elif flag in ['s', 'p', 't']:
+            if sort_by:
+                print(warn(f'Ignored sorting flag "{flag}", because the sorting is already set to "{sort_by}"'))
+            else:
+                sort_by = flag
+        elif flag in ['f', 'd']:
+            if filters:
+                print(warn(f'Ignored filter flag "{flag}", because the filter is already set to "{filters}"'))
+            else:
+                filters = flag
+        else:
+            print(err(f'Unknown flag: "{flag}"'))
+
+    if not format_flag:
+        format_flag = sort_by
+
+    files = list_files(my_shell.executor, is_remote, path)
+    print_ls(files, filters, sort_by, format_flag)
+
+settings = get_settings()
+
+@make_command(settings, 'List local files')
+def lls(my_shell: MyShell, path: LFile = LFile('.')) -> None:
+    '''List the files in the current directory or in the given path on the local computer'''
+    _internal_ls_formated(my_shell, LOCAL, '', path.value())
+
+@make_command(settings, 'List local files')
+def lls_format(my_shell: MyShell, flags: str, path: LFile = LFile('.')) -> None:
+    '''List the files in the current directory or in the given path on the local computer'''
+    _internal_ls_formated(my_shell, LOCAL, flags, path.value())
+
+@make_command(settings, 'List remote files')
+def ls(my_shell: MyShell, path: RFile = RFile('.')) -> None:
+    '''List the files in the current directory or in the given path on the remote computer'''
+    _internal_ls_formated(my_shell, REMOTE, '', path.value())
+
+@make_command(settings, 'List remote files')
+def ls_format(my_shell: MyShell, flags: str, path: RFile = RFile('.')) -> None:
+    '''List the files in the current directory or in the given path on the remote computer'''
+    _internal_ls_formated(my_shell, REMOTE, flags, path.value())
+

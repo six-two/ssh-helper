@@ -9,7 +9,6 @@ import traceback
 # Local modules
 from .common import *
 from .ssh_utils import SshCommandBuilder, SshSettings
-from .list_files import list_files, print_ls
 # Exteranl libs
 from tabulate import tabulate
 
@@ -134,36 +133,6 @@ Useful for testing, since you don't need to set up a ssh server'''
     def cwd(self, is_remote: IsRemote) -> Optional[str]:
         return self.remote_path if is_remote else self.local_path
 
-    def ls(self, is_remote: IsRemote, flags: str, path: str):
-        format_flag = ''
-        filters = ''
-        sort_by = ''
-        for flag in flags:
-            if flag == 'l':
-                if format_flag:
-                    print(warn(f'Ignored format flag "{flag}", because the format is already set to "{format_flag}"'))
-                else:
-                    format_flag = flag
-            elif flag in ['s', 'p', 't']:
-                if sort_by:
-                    print(warn(f'Ignored sorting flag "{flag}", because the sorting is already set to "{sort_by}"'))
-                else:
-                    sort_by = flag
-            elif flag in ['f', 'd']:
-                if filters:
-                    print(warn(f'Ignored filter flag "{flag}", because the filter is already set to "{filters}"'))
-                else:
-                    filters = flag
-            else:
-                print(err(f'Unknown flag: "{flag}"'))
-
-        if not format_flag:
-            format_flag = sort_by
-
-        files = list_files(self, is_remote, path)
-        print_ls(files, filters, sort_by, format_flag)
-
-
     def cd(self, is_remote: IsRemote, path: str) -> None:
         if path:
             new_cwd = self.cwd(is_remote)
@@ -194,9 +163,3 @@ Useful for testing, since you don't need to set up a ssh server'''
         # remove duplicates and sort alphabetical
         return sorted(set(commands))
 
-    def file_transfer(self, src: str, dst: str, is_upload: bool, is_directory: bool) -> None:
-        if not self.ssh_helper:
-            raise NoRemoteException()
-
-        command = self.ssh_helper.make_scp_command(src, dst, is_upload, is_directory)
-        self.execute(LOCAL, command)

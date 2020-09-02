@@ -3,10 +3,10 @@ import os
 import re
 from typing import List, Optional
 # Local
-from .common import *
-from .my_shell import MyShell
-from .executor import NoRemoteException
-from .complete import *
+from ..common import *
+from ..my_shell import MyShell
+from ..executor import NoRemoteException
+from ..complete import *
 
 
 settings = get_settings()
@@ -59,26 +59,6 @@ def exit(my_shell: MyShell) -> bool:
 You can trigger this by pressing Ctrl-D on an empty prompt.'''
     return True
 
-@make_command(settings, 'List remote files')
-def ls(my_shell: MyShell, path: RFile = RFile('.')) -> None:
-    '''List the files in the current directory or in the given path on the remote computer'''
-    my_shell.executor.ls(REMOTE, '', path.value())
-
-@make_command(settings, 'List remote files')
-def ls_format(my_shell: MyShell, flags: str, path: RFile = RFile('.')) -> None:
-    '''List the files in the current directory or in the given path on the remote computer'''
-    my_shell.executor.ls(REMOTE, flags, path.value())
-
-@make_command(settings, 'List local files')
-def lls(my_shell: MyShell, path: LFile = LFile('.')) -> None:
-    '''List the files in the current directory or in the given path on the local computer'''
-    my_shell.executor.ls(LOCAL, '', path.value())
-
-@make_command(settings, 'List local files')
-def lls_format(my_shell: MyShell, flags: str, path: LFile = LFile('.')) -> None:
-    '''List the files in the current directory or in the given path on the local computer'''
-    my_shell.executor.ls(LOCAL, flags, path.value())
-
 @make_command(settings, 'Print current working directories')
 def pwd(my_shell: MyShell) -> None:
     '''Show the full path of your current working directories'''
@@ -123,24 +103,6 @@ def lcd(my_shell: MyShell, path: LFolder = LFolder('')) -> None:
     '''If a path is given, the local working directory is set to path.
 If no path is given, the local working directory is set to the users home directory.'''
     my_shell.executor.cd(LOCAL, path.value())
-
-@make_command(settings, 'Download a remote file', aliases=['dl'])
-def download(my_shell: MyShell, path: RFile) -> None:
-    '''Download the file located at path from the local computer and saves it with the same filename in the working directory on the local computer.'''
-    remote_path = path.value()
-    local_path = os.path.basename(remote_path)
-    is_upload = False
-    is_directory = False
-    my_shell.executor.file_transfer(remote_path, local_path, is_upload, is_directory)
-
-@make_command(settings, 'Upload a local file', aliases=['ul'])
-def upload(my_shell: MyShell, path: LFile) -> None:
-    '''Upload the file located at path from the local computer and saves it with the same filename in the working directory on the remote computer.'''
-    local_path = path.value()
-    remote_path = os.path.basename(local_path)
-    is_upload = True
-    is_directory = False
-    my_shell.executor.file_transfer(remote_path, local_path, is_upload, is_directory)
 
 @make_command(settings, 'Edit a remote file', aliases=['e'])
 def edit(my_shell: MyShell, path: RFile) -> None:
@@ -211,14 +173,6 @@ def run(my_shell: MyShell, path: RFile) -> None:
     lpath = os.path.join('.', path.value())
     chmod_and_exec = ['chmod', '+x', lpath, ';', lpath]
     my_shell.executor.execute(REMOTE, chmod_and_exec, shell=True)
-
-@make_command(settings, 'Upload local file and execute on remote', aliases=['upr'])
-def upload_and_run(my_shell: MyShell, path: LFile) -> None:
-    '''Mark the given file as executeable and then execute it'''
-    file_name = RFile(os.path.basename(path.value()))
-
-    upload(my_shell, path)
-    run(my_shell, file_name)
 
 @make_command(settings, 'Print remote variables', aliases=['sv'])
 def search_vars(my_shell: MyShell, regex: str = None) -> None:
