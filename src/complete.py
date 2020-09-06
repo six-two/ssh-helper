@@ -8,63 +8,22 @@ import shlex
 import functools
 #local
 from .common import *
+from .executor import CommandExecutionFailed, NoRemoteException
+# Libraries
+from py_derive_cmd import GenericOption, complete_path
 
 
-class UsageException(Exception):
-    pass
+def list_files_factory(my_shell, remote: IsRemote, allow_files: bool) -> Callable:
+    def list_files_result(folder: str) -> List[str]:
+        ls_command = ['ls', '-1', '--escape', '--indicator-style=slash', '-A', '--color=never', folder]
+        output = my_shell.executor.execute_in_background(remote, ls_command)
+        file_names = output.split('\n')
+        if not allow_files:
+            file_names = [f for f in file_names if f.endswith('/')]
+        return file_names
 
+    return list_files_result
 
-class GenericOption:
-    def __init__(self, arg_str) -> None:
-        '''Parse the value. It may throw an exception, if the argument is malformatted / invalid'''
-        self.raw = arg_str
-
-    def value(self) -> Any:
-        return self.raw
-
-    @classmethod
-    def complete(cls, my_shell, argument_up_to_cursor: str, text: str) -> List[str]:
-        return []
-
-    @classmethod
-    def describe(cls) -> str:
-        return 'No description available'
-
-def option_list_to_string(options: List[str]) -> str:
-    if len(options) < 2:
-        raise Exception('Has to has at least two options')
-    joined = '", "'.join(options)
-    return f'"{joined}"'
-
-class OptionList(GenericOption):
-    options: List[str] = []
-
-    def __init__(self, arg_value):
-        super().__init__(arg_value)
-        if arg_value not in self.options:
-            raise UsageException(f'Invalid option: got "{arg_value}", but expected one of {option_list_to_string(self.options)}')
-
-    @classmethod
-    def complete(cls, my_shell, argument_up_to_cursor: str, text: str) -> List[str]:
-        return [o for o in cls.options if o.startswith(text)]
-
-    @classmethod
-    def describe(cls) -> str:
-        return 'Valid values: ' + option_list_to_string(cls.options)
-
-    @classmethod
-    def parse(cls, arg: str) -> str:
-        '''Parse the value. It may throw an UsageException, if the argument is malformatted / invalid'''
-        if arg not in cls.options:
-            raise UsageException(f'Invalid option: got "{arg}", but expected one of {option_list_to_string(cls.options)}')
-        else:
-            return arg        
-
-class BoolOption(OptionList):
-    options = ['true', 'false']
-
-    def value(self) -> bool:
-        return self.raw == 'true'
 
 class GenericFilePath(GenericOption):
     remote: Optional[IsRemote] = None
@@ -74,10 +33,19 @@ class GenericFilePath(GenericOption):
     def complete(cls, my_shell, argument_up_to_cursor: str, text: str) -> List[str]:
         if cls.remote is None or cls.allow_files is None:
             print(f'Warning: class "{cls.__name__}" has not overwritten all required fields of GenericFilePath')
-            return []
         else:
-            return my_shell.executor.complete_path(cls.remote, cls.allow_files, argument_up_to_cursor, text)
+            try:
+                fn_list_files = list_files_factory(my_shell, cls.remote, cls.allow_files)
+                return complete_path('.', fn_list_files, argument_up_to_cursor, text)
+            except CommandExecutionFailed as ex:
+                print_debug(ex)
+            except NoRemoteException:
+                pass
+            except Exception as ex:
+                # TODO log these in a file somewhere?
+                print(err(str(ex)))
 
+        return []
 
 class LFile(GenericFilePath):
     remote = LOCAL

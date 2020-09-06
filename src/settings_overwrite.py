@@ -4,10 +4,9 @@ import functools
 import traceback
 # Local
 from .common import *
-from .complete import UsageException
 from .executor import NoRemoteException
 # External
-from py_derive_cmd import Settings, CommandInfo
+from py_derive_cmd import Settings, CommandInfo, UsageException
 
 class MySettings(Settings):
     def handle_exceptions(self, command: 'CommandInfo', function_that_might_fail: Callable) -> Callable:
