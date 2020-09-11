@@ -3,9 +3,6 @@
 '''
 ============== TODO ============================
 add typing annotations everywhere
-handle args: support primitives like str, int, bool, float
- - abstract complete folder
- - make it into reuseable separate package
 file name argument parsing with special cases (TODO: test)
 creating shortcuts (like R1, L4)
 
@@ -16,6 +13,7 @@ sysinfo
 resource
 pgrep, pkill
 (upload|download)_dir
+uxs (upload and execute script. script in local folder distributed with this)
 
 =============== nice to have(s) ================
 Use libssh to prevent having to log in again for every command.
